@@ -6,7 +6,7 @@ import './GrillaSkus.css';
 export type EstadoSlot = 'entra' | 'sale' | 'normal';
 export type ModoColorGrilla = 'movimiento' | 'rotacion';
 
-function colorCalor(intensidad: number): string {
+export function colorCalor(intensidad: number): string {
   const pct = Math.round(Math.max(0, Math.min(1, intensidad)) * 100);
   return `color-mix(in srgb, #0F5F8F ${pct}%, #DCE6ED)`;
 }

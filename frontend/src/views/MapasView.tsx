@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { DetalleZona } from '../components/mapas/DetalleZona';
 import { MapaOcupacion } from '../components/mapas/MapaOcupacion';
+import { PlanoV3Preview } from '../components/mapas/PlanoV3Preview';
 import { agruparPorZonaExcel, zonasSinGeometria } from '../components/mapas/ocupacion';
 import { PlanoSVG } from '../components/plano/PlanoSVG';
 import { EstadoPipeline } from '../components/ui/EstadoPipeline';
@@ -65,6 +66,8 @@ export function MapasView() {
       {zonaDetalle && (
         <DetalleZona zona={zonaDetalle} recomendaciones={resultado.recomendaciones} onClose={() => setZonaDetalle(null)} />
       )}
+
+      <PlanoV3Preview recomendaciones={resultado.recomendaciones} />
 
       <h2 className="mapas-referencia-titulo">Referencia: geometría y técnica de almacenamiento</h2>
       <PlanoSVG />
