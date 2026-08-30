@@ -48,19 +48,23 @@ function porVelocidadReal(skus: RecomendacionSKU[]): RecomendacionSKU[] {
  * - `ZONA_ACTUAL` ("Hoy"/"Situación actual"): los SKU de HOY son los
  *   primarios; "se_va" marca cuáles de esos se van en la propuesta. No
  *   se inventan llegadas en las posiciones libres -- eso es especulación
- *   de la propuesta, no forma parte de "hoy" (era la causa de que esta
- *   vista pareciera mostrar la propuesta: la mayoría de los espacios
- *   coloreados eran llegadas ilustrativas, no ocupación real de hoy).
+ *   de la propuesta, no forma parte de "hoy".
  * - `ZONA_RECOMENDADA` ("Propuesta"): los SKU de la PROPUESTA son los
  *   primarios; "llega" marca cuáles son nuevos (no estaban hoy en esta
  *   zona). No hace falta marcar "se_va" -- ya estamos parados en el
  *   estado futuro, lo que se fue ya no está.
  *
- * Dentro de cada `campo`, el SKU con más movimiento real cae en el
- * espacio real más cercano a "Mesas de trabajo" (ver `porCercania`/
- * `porVelocidadReal` arriba) -- antes era un emparejamiento arbitrario
- * por índice (el SKU #i de la lista al espacio #i del SVG), sin ninguna
- * relación con cercanía real.
+ * Los SKU que se MANTIENEN en la zona (están en `hoy` y en `propuesta`)
+ * se calculan UNA sola vez, con el mismo orden, y se colocan primero --
+ * así ocupan el mismo espacio ilustrativo sin importar qué mapa los esté
+ * pintando. Antes cada mapa ordenaba su propia lista (hoy vs. propuesta)
+ * por separado; como esas listas tienen distinta composición (un SKU
+ * ajeno entra o sale de la zona), el orden se corría y un SKU que en
+ * realidad se quedaba en la zona "saltaba" de espacio entre un mapa y el
+ * otro -- parecía un intercambio de posiciones que nunca ocurrió, porque
+ * la posición exacta dentro de la zona es solo ilustrativa (STOCK_ACTUAL
+ * no trae fila/columna/nivel) y el sistema no reordena SKUs dentro de
+ * una misma zona, solo decide zona destino.
  *
  * `claveExcel: null` (zona sin equivalente en el Excel, o no primaria de
  * una clave compartida) -> todo disponible. */
@@ -74,29 +78,31 @@ export function asientosPorMovimiento(
 
   const hoy = recomendaciones.filter((r) => r.ZONA_ACTUAL === claveExcel);
   const propuesta = recomendaciones.filter((r) => r.ZONA_RECOMENDADA === claveExcel);
-  const principal = porVelocidadReal(campo === 'ZONA_ACTUAL' ? hoy : propuesta);
-  const espaciosCercanos = porCercania(espacios);
+  const propuestaSkus = new Set(propuesta.map((r) => r.SKU));
+  const hoySkus = new Set(hoy.map((r) => r.SKU));
 
-  const skuPorEspacioId = new Map<string, RecomendacionSKU>();
-  principal.forEach((sku, i) => {
-    const e = espaciosCercanos[i];
-    if (e) skuPorEspacioId.set(e.id, sku);
+  const mantienen = porVelocidadReal(hoy.filter((r) => propuestaSkus.has(r.SKU)));
+  const entrantes = porVelocidadReal(
+    campo === 'ZONA_ACTUAL' ? hoy.filter((r) => !propuestaSkus.has(r.SKU)) : propuesta.filter((r) => !hoySkus.has(r.SKU)),
+  );
+  const estadoEntrante: EstadoMovimiento = campo === 'ZONA_ACTUAL' ? 'se_va' : 'llega';
+
+  const espaciosCercanos = porCercania(espacios);
+  const skuPorEspacioId = new Map<string, { sku: RecomendacionSKU; estado: EstadoMovimiento }>();
+  let cursor = 0;
+  mantienen.forEach((sku) => {
+    const e = espaciosCercanos[cursor++];
+    if (e) skuPorEspacioId.set(e.id, { sku, estado: 'ocupada' });
+  });
+  entrantes.forEach((sku) => {
+    const e = espaciosCercanos[cursor++];
+    if (e) skuPorEspacioId.set(e.id, { sku, estado: estadoEntrante });
   });
 
-  if (campo === 'ZONA_ACTUAL') {
-    const propuestaSkus = new Set(propuesta.map((r) => r.SKU));
-    return espacios.map((e) => {
-      const sku = skuPorEspacioId.get(e.id);
-      if (!sku) return { id: e.id, estado: 'disponible' as const };
-      return { id: e.id, estado: propuestaSkus.has(sku.SKU) ? ('ocupada' as const) : ('se_va' as const), sku };
-    });
-  }
-
-  const hoySkus = new Set(hoy.map((r) => r.SKU));
   return espacios.map((e) => {
-    const sku = skuPorEspacioId.get(e.id);
-    if (!sku) return { id: e.id, estado: 'disponible' as const };
-    return { id: e.id, estado: hoySkus.has(sku.SKU) ? ('ocupada' as const) : ('llega' as const), sku };
+    const asiento = skuPorEspacioId.get(e.id);
+    if (!asiento) return { id: e.id, estado: 'disponible' as const };
+    return { id: e.id, estado: asiento.estado, sku: asiento.sku };
   });
 }
 
