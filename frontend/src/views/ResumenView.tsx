@@ -1,4 +1,7 @@
-import { PlanoV3Preview } from '../components/mapas/PlanoV3Preview';
+import { useState } from 'react';
+import { useZonas, type Zona } from '../api/zonas';
+import { DetalleZona } from '../components/mapas/DetalleZona';
+import { PlanoEscaneado } from '../components/mapas/PlanoEscaneado';
 import { usePipeline } from '../context/PipelineContext';
 import { EstadoActualView } from './EstadoActualView';
 import { KpisPrincipales } from './KpisPrincipales';
@@ -7,11 +10,22 @@ import { KpisPrincipales } from './KpisPrincipales';
  * primero (KPIs), mapa de calor de ocupación actual debajo. */
 export function ResumenView() {
   const { resultado } = usePipeline();
+  const { zonas } = useZonas();
+  const [zonaDetalle, setZonaDetalle] = useState<Zona | null>(null);
+
   return (
     <div>
       <KpisPrincipales />
       <EstadoActualView />
-      {resultado && <PlanoV3Preview recomendaciones={resultado.recomendaciones} />}
+      {resultado && (
+        <PlanoEscaneado
+          recomendaciones={resultado.recomendaciones}
+          onClickZona={(id) => setZonaDetalle(zonas?.find((z) => z.id === id) ?? null)}
+        />
+      )}
+      {resultado && zonaDetalle && (
+        <DetalleZona zona={zonaDetalle} recomendaciones={resultado.recomendaciones} onClose={() => setZonaDetalle(null)} />
+      )}
     </div>
   );
 }

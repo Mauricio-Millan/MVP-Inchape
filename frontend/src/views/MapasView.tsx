@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { DetalleZona } from '../components/mapas/DetalleZona';
 import { MapaOcupacion } from '../components/mapas/MapaOcupacion';
-import { PlanoV3Preview } from '../components/mapas/PlanoV3Preview';
+import { PlanoEscaneado } from '../components/mapas/PlanoEscaneado';
 import { agruparPorZonaExcel, zonasSinGeometria } from '../components/mapas/ocupacion';
 import { PlanoSVG } from '../components/plano/PlanoSVG';
 import { EstadoPipeline } from '../components/ui/EstadoPipeline';
@@ -22,6 +22,12 @@ export function MapasView() {
   }
   if (!zonas) {
     return <p className="plano-cargando">Cargando geometría del plano…</p>;
+  }
+
+  const zonasCargadas = zonas;
+  function abrirPorId(zonaId: string) {
+    const z = zonasCargadas.find((zona) => zona.id === zonaId);
+    if (z) setZonaDetalle(z);
   }
 
   const ocupacionActual = agruparPorZonaExcel(resultado.recomendaciones, 'ZONA_ACTUAL');
@@ -67,7 +73,7 @@ export function MapasView() {
         <DetalleZona zona={zonaDetalle} recomendaciones={resultado.recomendaciones} onClose={() => setZonaDetalle(null)} />
       )}
 
-      <PlanoV3Preview recomendaciones={resultado.recomendaciones} />
+      <PlanoEscaneado recomendaciones={resultado.recomendaciones} onClickZona={abrirPorId} />
 
       <h2 className="mapas-referencia-titulo">Referencia: geometría y técnica de almacenamiento</h2>
       <PlanoSVG />

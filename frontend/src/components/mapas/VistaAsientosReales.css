@@ -1,0 +1,88 @@
+.asientos-reales-resumen {
+  font-size: 12.5px;
+  color: var(--grafito2);
+  margin-bottom: 12px;
+}
+
+.asientos-reales-wrap {
+  position: relative;
+  background: var(--tiza);
+  border: 1px solid var(--linea);
+  border-radius: var(--radio-md);
+  padding: 10px;
+}
+
+.asientos-reales-svg {
+  width: 100%;
+  height: auto;
+  max-height: 340px;
+  display: block;
+}
+
+.asientos-reales-borde {
+  fill: none;
+  stroke: var(--grafito2);
+  stroke-width: 1;
+  opacity: 0.4;
+}
+
+.asientos-reales-punto {
+  stroke: var(--linea-fuerte);
+  stroke-width: 0.4;
+  cursor: pointer;
+  transition: r 0.1s ease;
+}
+.asientos-reales-punto:hover {
+  stroke: var(--grafito);
+  stroke-width: 1;
+}
+
+/* Disponible = blanco, Ocupada = azul, Se va = rojo, Llega = verde --
+ * exactamente los estados que pediste, más "llega" como cuarto estado
+ * natural (ver respuesta en el chat sobre qué otros estados existen). */
+.estado-disponible {
+  fill: #ffffff;
+}
+.estado-ocupada {
+  fill: var(--senal);
+}
+.estado-se_va {
+  fill: var(--riesgo);
+}
+.estado-llega {
+  fill: var(--exito);
+}
+
+.asientos-reales-tip {
+  position: absolute;
+  bottom: 14px;
+  left: 14px;
+  background: rgba(29, 29, 31, 0.92);
+  color: #fff;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  padding: 6px 12px;
+  border-radius: var(--radio-sm);
+  pointer-events: none;
+}
+
+.asientos-reales-leyenda {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-top: 12px;
+  font-size: 12px;
+  color: var(--grafito2);
+}
+.asientos-reales-leyenda li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.asientos-reales-chip {
+  display: inline-block;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  border: 1px solid var(--linea-fuerte);
+}

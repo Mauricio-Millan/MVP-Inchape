@@ -15,6 +15,8 @@ import { ApiError } from '../../api/config';
 import type { Zona } from '../../api/zonas';
 import { esZonaPrimariaParaSuClave } from './ocupacion';
 import { GrillaSkus, type EstadoSlot, type ModoColorGrilla } from './GrillaSkus';
+import { LAYOUT_ESCANEADO, zonaEscaneadaPorId } from './layoutEscaneado';
+import { VistaAsientosReales } from './VistaAsientosReales';
 import './DetalleZona.css';
 
 const OPERADORES: Operador[] = ['>', '>=', '<', '<=', '==', '!='];
@@ -89,6 +91,11 @@ export function DetalleZona({
     const valores = recomendaciones.map((r) => r.ROTACION_6M);
     return { min: Math.min(...valores), max: Math.max(...valores) };
   }, [recomendaciones]);
+
+  // Si esta zona ya tiene geometría real escaneada (layoutEscaneado.ts),
+  // se muestra esa -- posiciones reales, no la grilla CSS ilustrativa.
+  const infoEscaneada = zonaEscaneadaPorId(zona.id);
+  const zonaReal = infoEscaneada ? LAYOUT_ESCANEADO.zonas[infoEscaneada.nombreSvg] : undefined;
 
   const [reglas, setReglas] = useState<Regla[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -206,54 +213,67 @@ export function DetalleZona({
           )}
         </div>
 
-        <div className="ctrl" role="group" aria-label="Color de los espacios">
-          <button aria-pressed={modoColor === 'movimiento'} onClick={() => setModoColor('movimiento')}>
-            Por movimiento
-          </button>
-          <button aria-pressed={modoColor === 'rotacion'} onClick={() => setModoColor('rotacion')}>
-            Por rotación
-          </button>
-        </div>
-
-        <div className="detalle-zona-columnas">
-          <section>
-            <h3>
-              Hoy <span className="mono">({skusHoy.length} SKU)</span>
-            </h3>
-            <GrillaSkus
-              zonaId={zona.id}
-              skus={skusHoy}
-              estado={estadoHoy}
-              vacioTexto="Ningún SKU está aquí hoy."
-              modo={modoColor}
-              rangoRotacion={rangoRotacion}
+        {zonaReal ? (
+          <>
+            <h3 className="detalle-subtitulo">Espacios reales (escaneados)</h3>
+            <VistaAsientosReales
+              zonaReal={zonaReal}
+              claveExcel={infoEscaneada!.claveExcel}
+              recomendaciones={recomendaciones}
             />
-          </section>
-          <section>
-            <h3>
-              Propuesta <span className="mono">({skusPropuesta.length} SKU)</span>
-            </h3>
-            <GrillaSkus
-              zonaId={zona.id}
-              skus={skusPropuesta}
-              estado={estadoPropuesta}
-              vacioTexto="Ningún SKU se recomienda aquí."
-              modo={modoColor}
-              rangoRotacion={rangoRotacion}
-            />
-          </section>
-        </div>
+          </>
+        ) : (
+          <>
+            <div className="ctrl" role="group" aria-label="Color de los espacios">
+              <button aria-pressed={modoColor === 'movimiento'} onClick={() => setModoColor('movimiento')}>
+                Por movimiento
+              </button>
+              <button aria-pressed={modoColor === 'rotacion'} onClick={() => setModoColor('rotacion')}>
+                Por rotación
+              </button>
+            </div>
 
-        <p className="detalle-zona-leyenda">
-          <span className="leyenda-item"><i className="leyenda-chip chip-sale" /> se va</span>
-          <span className="leyenda-item"><i className="leyenda-chip chip-entra" /> llega</span>
-          <span className="leyenda-item"><i className="leyenda-chip chip-normal" /> se mantiene</span>
-        </p>
-        <p className="detalle-zona-nota">
-          La disposición es un orden lógico por SKU, no la posición física real del estante —{' '}
-          <span className="mono">STOCK_ACTUAL</span> solo registra un código secuencial de ubicación
-          (<span className="mono">UB00001…</span>), sin fila/columna/nivel medidos.
-        </p>
+            <div className="detalle-zona-columnas">
+              <section>
+                <h3>
+                  Hoy <span className="mono">({skusHoy.length} SKU)</span>
+                </h3>
+                <GrillaSkus
+                  zonaId={zona.id}
+                  skus={skusHoy}
+                  estado={estadoHoy}
+                  vacioTexto="Ningún SKU está aquí hoy."
+                  modo={modoColor}
+                  rangoRotacion={rangoRotacion}
+                />
+              </section>
+              <section>
+                <h3>
+                  Propuesta <span className="mono">({skusPropuesta.length} SKU)</span>
+                </h3>
+                <GrillaSkus
+                  zonaId={zona.id}
+                  skus={skusPropuesta}
+                  estado={estadoPropuesta}
+                  vacioTexto="Ningún SKU se recomienda aquí."
+                  modo={modoColor}
+                  rangoRotacion={rangoRotacion}
+                />
+              </section>
+            </div>
+
+            <p className="detalle-zona-leyenda">
+              <span className="leyenda-item"><i className="leyenda-chip chip-sale" /> se va</span>
+              <span className="leyenda-item"><i className="leyenda-chip chip-entra" /> llega</span>
+              <span className="leyenda-item"><i className="leyenda-chip chip-normal" /> se mantiene</span>
+            </p>
+            <p className="detalle-zona-nota">
+              La disposición es un orden lógico por SKU, no la posición física real del estante —{' '}
+              <span className="mono">STOCK_ACTUAL</span> solo registra un código secuencial de ubicación
+              (<span className="mono">UB00001…</span>), sin fila/columna/nivel medidos.
+            </p>
+          </>
+        )}
       </div>
     </div>
   );
