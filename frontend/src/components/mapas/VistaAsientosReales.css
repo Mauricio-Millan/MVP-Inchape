@@ -1,7 +1,14 @@
 .asientos-reales-resumen {
   font-size: 12.5px;
   color: var(--grafito2);
-  margin-bottom: 12px;
+  margin-bottom: 4px;
+}
+
+.asientos-reales-aviso {
+  font-size: 11.5px;
+  color: var(--grafito2);
+  font-style: italic;
+  margin: 0 0 12px;
 }
 
 .asientos-reales-wrap {
@@ -15,7 +22,7 @@
 .asientos-reales-svg {
   width: 100%;
   height: auto;
-  max-height: 340px;
+  max-height: 480px;
   display: block;
 }
 
@@ -26,22 +33,31 @@
   opacity: 0.4;
 }
 
+/* El elemento real puede ser cualquier forma que hayas dibujado (rect,
+ * circle, path...) -- el estilo es agnóstico a la forma, solo cambia
+ * color/borde según el estado (ver .estado-*). */
 .asientos-reales-punto {
   stroke: var(--linea-fuerte);
   stroke-width: 0.4;
   cursor: pointer;
-  transition: r 0.1s ease;
+  transition: fill 0.1s ease, stroke-width 0.1s ease;
 }
 .asientos-reales-punto:hover {
   stroke: var(--grafito);
   stroke-width: 1;
 }
+/* Al pasar el mouse por un SKU en la lista lateral (ver
+ * .asientos-reales-item) -- ubica en la grilla cuál espacio es. */
+.asientos-reales-resaltado {
+  stroke: var(--grafito) !important;
+  stroke-width: 1.6 !important;
+}
 
-/* Disponible = blanco, Ocupada = azul, Se va = rojo, Llega = verde --
- * exactamente los estados que pediste, más "llega" como cuarto estado
- * natural (ver respuesta en el chat sobre qué otros estados existen). */
+/* Disponible = gris, Ocupada = azul, Se va = rojo, Llega = verde --
+ * gris (no blanco) para que un espacio disponible se distinga del
+ * contorno de la zona, que nunca se rellena (ver .asientos-reales-borde). */
 .estado-disponible {
-  fill: #ffffff;
+  fill: #c7c7cc;
 }
 .estado-ocupada {
   fill: var(--senal);
@@ -57,10 +73,13 @@
   position: absolute;
   bottom: 14px;
   left: 14px;
+  right: 14px;
+  max-width: 340px;
   background: rgba(29, 29, 31, 0.92);
   color: #fff;
   font-family: var(--font-sans);
   font-size: 12px;
+  line-height: 1.4;
   padding: 6px 12px;
   border-radius: var(--radio-sm);
   pointer-events: none;
@@ -85,4 +104,93 @@
   height: 13px;
   border-radius: 50%;
   border: 1px solid var(--linea-fuerte);
+}
+/* `fill` (arriba, en .estado-*) solo pinta formas SVG -- este chip es un
+ * <span>, necesita `background` aparte o queda hueco. */
+.asientos-reales-chip.estado-disponible {
+  background: #c7c7cc;
+}
+.asientos-reales-chip.estado-ocupada {
+  background: var(--senal);
+}
+.asientos-reales-chip.estado-se_va {
+  background: var(--riesgo);
+}
+.asientos-reales-chip.estado-llega {
+  background: var(--exito);
+}
+
+.asientos-reales-leyenda-calor {
+  margin-top: 12px;
+  font-size: 12px;
+  color: var(--grafito2);
+}
+
+/* Mapa + lista lateral de SKU, lado a lado -- se apilan en pantallas
+ * angostas (el modal ya es ancho, pero por si acaso). */
+.asientos-reales-cuerpo {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+.asientos-reales-mapa {
+  flex: 1 1 320px;
+  min-width: 260px;
+}
+
+.asientos-reales-lista {
+  flex: 1 1 260px;
+  min-width: 220px;
+  max-width: 340px;
+}
+.asientos-reales-lista h4 {
+  margin: 0 0 8px;
+  font-size: 13px;
+  color: var(--grafito2);
+}
+.asientos-reales-lista ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 480px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.asientos-reales-lista-vacio {
+  font-size: 12.5px;
+  color: var(--grafito2);
+}
+
+.asientos-reales-item {
+  border: 1px solid var(--linea);
+  border-radius: var(--radio-sm);
+  padding: 6px 10px;
+  font-size: 12px;
+}
+.asientos-reales-item-sku {
+  margin: 0;
+}
+.asientos-reales-item-detalle {
+  margin: 3px 0 0;
+  color: var(--grafito2);
+}
+/* Destacado = los que se mueven (se_va) o llegan (llega) -- el color de
+ * borde/fondo es el mismo que su cuadro en la grilla, para que sea obvio
+ * que son el mismo espacio. */
+.asientos-reales-item.destacado.estado-se_va {
+  border-color: var(--riesgo);
+  background: color-mix(in srgb, var(--riesgo) 10%, var(--tiza));
+}
+.asientos-reales-item.destacado.estado-se_va .asientos-reales-item-detalle {
+  color: var(--riesgo);
+}
+.asientos-reales-item.destacado.estado-llega {
+  border-color: var(--exito);
+  background: color-mix(in srgb, var(--exito) 10%, var(--tiza));
+}
+.asientos-reales-item.destacado.estado-llega .asientos-reales-item-detalle {
+  color: var(--exito);
 }

@@ -1,5 +1,6 @@
 /** Plantillas de disposición por zona -- filas de bloques (racks) con
- * pasillos entre ellas, una por cada una de las 13 zonas geométricas.
+ * pasillos entre ellas, una por cada una de las zonas geométricas que
+ * todavía no tienen geometría real trazada (ver `zonas.json`).
  *
  * Son ILUSTRATIVAS, no medidas: `STOCK_ACTUAL.UBICACIÓN` es solo un
  * código secuencial (UB00001...), sin fila/columna/nivel real -- no

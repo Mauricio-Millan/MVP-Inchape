@@ -1,12 +1,45 @@
 import type { RefObject } from 'react';
 import type { Zona } from '../../api/zonas';
+import { LAYOUT_ESCANEADO } from '../mapas/layoutEscaneado';
 import './PlanoSVG.css';
 
-// Geometría decorativa del edificio -- no es dato de negocio (no cambia
-// de un lote a otro), así que se queda como constante de frontend, tal
-// como en V1 planta-cd-aldeas-vectorial.html.
-const CONTORNO_EDIFICIO = '40,10 207,10 564,459 125,592 40,592';
-const N_MUELLES = 16;
+// Qué zona real (por nombre en layoutEscaneado.json) dibuja el contorno
+// de cada zona esquemática de zonas.json -- "recepcion" (Recepción de
+// aéreos) y "recibo" (Ubicación Recibo) son dos zonas REALES distintas
+// (confirmado por posición: Recibido está abajo cerca de Bulk,
+// Recepción de aéreos arriba) -- antes estaban mal fusionadas, ver
+// mapeoZonas.json y `LAYOUT-SVG-ESCANEADO.md` §11.
+//
+// Dos de las 14 zonas de zonas.json no tienen todavía ninguna forma
+// real trazada (Cluster (mezz.) y Zona de carpintería) -- no se les
+// inventa un contorno, quedan fuera del dibujo (siguen apareciendo en
+// la leyenda/tabla, que no dependen de geometría).
+export const CONTORNO_REAL_POR_ZONA: Record<string, string> = {
+  cluster: 'Cluster Multinivel',
+  recepcion: 'Recepcion Aereos',
+  recibo: 'Recibido',
+  estanteria: 'Estanteria Multinivel',
+  doble: 'Rack Doble',
+  simple: 'Rack Simple',
+  balda14: 'Rack Balda 1.4',
+  balda22: 'Rack Balda 2.2',
+  neumaticos: 'Llantas',
+  bulk: 'Bulk',
+  colgantes: 'Colgados',
+  mesas: 'Mesa de Trabajo',
+};
+
+/** Caja delimitadora aproximada de un `d` de SVG cualquiera (M/L/C/Z...)
+ * -- toma todos los números como pares x,y consecutivos. No hace falta
+ * la forma exacta, alcanza para el viewBox y para centrar la etiqueta
+ * de cada zona (mismo criterio que `centroide_de_d` en
+ * `extraer_layout_svg.py`). */
+function bboxDeD(d: string) {
+  const nums = (d.match(/-?\d*\.?\d+(?:[eE][-+]?\d+)?/g) ?? []).map(Number);
+  const xs = nums.filter((_, i) => i % 2 === 0);
+  const ys = nums.filter((_, i) => i % 2 === 1);
+  return { minX: Math.min(...xs), minY: Math.min(...ys), maxX: Math.max(...xs), maxY: Math.max(...ys) };
+}
 
 export interface PlanoBaseProps {
   zonas: Zona[];
@@ -14,7 +47,7 @@ export interface PlanoBaseProps {
   textoClaro: (zona: Zona) => boolean;
   activa: string | null;
   onHoverZona: (zona: Zona, e: React.MouseEvent) => void;
-  onFocusZona: (zona: Zona, e: React.FocusEvent<SVGPolygonElement>) => void;
+  onFocusZona: (zona: Zona, e: React.FocusEvent<SVGPathElement>) => void;
   onLeaveZona: () => void;
   onClickZona: (zona: Zona) => void;
   planoRef: RefObject<HTMLDivElement | null>;
@@ -22,8 +55,16 @@ export interface PlanoBaseProps {
 }
 
 /** Solo geometría + interacción -- el color y el contenido del tooltip
- * los decide quien lo use (PlanoSVG con técnica/densidad/distancia,
- * MapaOcupacion con SKU actuales/recomendados). */
+ * los decide quien lo use (hoy solo `PlanoSVG`, con técnica/densidad/
+ * distancia). Geometría 100% real, del layout escaneado
+ * (`layoutEscaneado.json`: `contorno_d` del edificio completo,
+ * `boundary_d` real de cada zona) -- el polígono aproximado que traía
+ * `zonas.json` (`puntos_svg`) ya no se usa acá: se demostró que no era
+ * fiel al escaneo real (ver `LAYOUT-SVG-ESCANEADO.md` §7). Por lo mismo
+ * ya no hay muelles/grilla/escala dibujados -- eran geometría inventada
+ * calibrada a mano para el polígono aproximado viejo, no hay un dato
+ * real equivalente todavía (posición real de muelles, escala metros/
+ * píxel) para dibujarlos sobre el escaneo real. */
 export function PlanoBase({
   zonas,
   fill,
@@ -36,23 +77,42 @@ export function PlanoBase({
   planoRef,
   children,
 }: PlanoBaseProps) {
+  const zonasReales = zonas
+    .map((zona) => {
+      const nombreSvg = CONTORNO_REAL_POR_ZONA[zona.id];
+      const boundaryD = nombreSvg ? LAYOUT_ESCANEADO.zonas[nombreSvg]?.boundary_d : null;
+      return boundaryD ? { zona, boundaryD } : null;
+    })
+    .filter((z): z is { zona: Zona; boundaryD: string } => z !== null);
+
+  const contorno = LAYOUT_ESCANEADO.contorno_d;
+  const viewBox = (() => {
+    const bboxes = [...(contorno ? [bboxDeD(contorno)] : []), ...zonasReales.map((z) => bboxDeD(z.boundaryD))];
+    if (bboxes.length === 0) return LAYOUT_ESCANEADO.view_box ?? '0 0 658 691';
+    const margen = 14;
+    const minX = Math.min(...bboxes.map((b) => b.minX)) - margen;
+    const minY = Math.min(...bboxes.map((b) => b.minY)) - margen;
+    const maxX = Math.max(...bboxes.map((b) => b.maxX)) + margen;
+    const maxY = Math.max(...bboxes.map((b) => b.maxY)) + margen;
+    return `${minX} ${minY} ${maxX - minX} ${maxY - minY}`;
+  })();
+
   return (
     <div className="planwrap" ref={planoRef}>
       <svg
         className="plan"
-        viewBox="20 0 560 610"
+        viewBox={viewBox}
         role="img"
-        aria-label="Planta del centro de distribución con las zonas de almacenamiento"
+        aria-label="Planta del centro de distribución con las zonas de almacenamiento, geometría real escaneada"
       >
-        <GridMetrica />
-        <polygon className="plano-contorno" points={CONTORNO_EDIFICIO} />
+        {contorno && <path d={contorno} className="plano-contorno" />}
         <g>
-          {zonas.map((zona) => (
-            <polygon
+          {zonasReales.map(({ zona, boundaryD }) => (
+            <path
               key={zona.id}
               className="zone"
               tabIndex={0}
-              points={zona.puntos_svg}
+              d={boundaryD}
               fill={fill(zona)}
               style={{ strokeWidth: activa === zona.id ? 4 : 1.6 }}
               onMouseMove={(e) => onHoverZona(zona, e)}
@@ -62,78 +122,30 @@ export function PlanoBase({
               onClick={() => onClickZona(zona)}
             >
               <title>{zona.nombre}</title>
-            </polygon>
+            </path>
           ))}
         </g>
-        <Muelles />
-        <circle className="io" cx={46} cy={300} r={7} />
-        <text x={58} y={303} className="lbl sm" fontSize={9} fill="#1B2025">
-          I/O
-        </text>
         <g>
-          {zonas.map((zona) => (
-            <text
-              key={zona.id}
-              className="lbl"
-              x={zona.label_x}
-              y={zona.label_y}
-              fontSize={zona.label_fs}
-              fill={textoClaro(zona) ? '#F5F3EE' : '#1B2025'}
-              style={{ stroke: textoClaro(zona) ? '#1B2025' : '#FFFFFF' }}
-              textAnchor="middle"
-              transform={zona.label_rot ? `rotate(${zona.label_rot} ${zona.label_x} ${zona.label_y})` : undefined}
-            >
-              {zona.nombre}
-            </text>
-          ))}
+          {zonasReales.map(({ zona, boundaryD }) => {
+            const b = bboxDeD(boundaryD);
+            return (
+              <text
+                key={zona.id}
+                className="lbl"
+                x={(b.minX + b.maxX) / 2}
+                y={(b.minY + b.maxY) / 2}
+                fontSize={10}
+                fill={textoClaro(zona) ? '#F5F3EE' : '#1B2025'}
+                style={{ stroke: textoClaro(zona) ? '#1B2025' : '#FFFFFF' }}
+                textAnchor="middle"
+              >
+                {zona.nombre}
+              </text>
+            );
+          })}
         </g>
-        <Escala />
       </svg>
       {children}
     </div>
-  );
-}
-
-function GridMetrica() {
-  const verticales = [];
-  for (let x = 40; x < 580; x += 40) verticales.push(<line key={`v${x}`} x1={x} y1={0} x2={x} y2={610} />);
-  const horizontales = [];
-  for (let y = 0; y < 610; y += 40) horizontales.push(<line key={`h${y}`} x1={20} y1={y} x2={580} y2={y} />);
-  return (
-    <g className="grid-m">
-      {verticales}
-      {horizontales}
-    </g>
-  );
-}
-
-function Muelles() {
-  return (
-    <g>
-      {Array.from({ length: N_MUELLES }, (_, i) => {
-        const y = 70 + i * 30;
-        return (
-          <g key={i}>
-            <rect className="dock" x={31} y={y} width={11} height={15} />
-            <text className="docknum" x={36.5} y={y + 11} textAnchor="middle">
-              {i + 1}
-            </text>
-          </g>
-        );
-      })}
-    </g>
-  );
-}
-
-function Escala() {
-  return (
-    <g className="lbl sm" fontSize={8.5} fill="#3A434B">
-      <line x1={400} y1={575} x2={480} y2={575} stroke="#1B2025" strokeWidth={1.6} strokeLinecap="square" />
-      <line x1={400} y1={571} x2={400} y2={579} stroke="#1B2025" strokeWidth={1.6} />
-      <line x1={480} y1={571} x2={480} y2={579} stroke="#1B2025" strokeWidth={1.6} />
-      <text x={440} y={569} textAnchor="middle">
-        ≈ 20 m
-      </text>
-    </g>
   );
 }

@@ -1,9 +1,16 @@
+from typing import Literal
+
 from pydantic import BaseModel
 
 
 class SolicitudPipeline(BaseModel):
     pesos_score: dict[str, float] | None = None
     porcentaje_max_movimiento: float | None = None
+    # "layout_cd" (default) = TIEMPO_MINUTOS declarado en el Excel.
+    # "svg" = tiempo calibrado por regresión contra la distancia real
+    # medida en el layout escaneado (ver app/dominio/distancia_svg.py) --
+    # el optimizador puede recomendar zonas distintas en cada modo.
+    modo_distancia: Literal["layout_cd", "svg"] = "layout_cd"
 
 
 class RecomendacionSKU(BaseModel):
@@ -76,3 +83,9 @@ class RespuestaPipeline(BaseModel):
     banderas_activas: dict[str, bool]
     camino_decision_reglas: list[DecisionRegla]
     ml: MetricasML
+    # Espacio total declarado por zona (CAPACIDAD_M3_MAX de LAYOUT_CD,
+    # clave = ZONA/clave_excel) -- para que el frontend calcule ocupación
+    # por volumen (suma de VOLUMEN_M3 de los SKU en la zona / esto) sin
+    # tener que exponer un endpoint nuevo. Ausente del dict = esa zona no
+    # trajo capacidad declarada en el Excel de este lote.
+    capacidad_zonas: dict[str, float]

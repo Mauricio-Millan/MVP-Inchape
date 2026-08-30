@@ -1,0 +1,17 @@
+{
+  "_leeme": "Mapeo entre el nombre de cada zona en el SVG escaneado (nombreSvg, igual a la clave en layoutEscaneado.json) y el resto de la app: zonaId (el id que ya usan zonas.json/espaciosZona.ts) y claveExcel (el nombre exacto de LAYOUT_CD/STOCK_ACTUAL, o null si esta zona no tiene equivalente en el Excel, o si comparte clave con otra zona y no es la primaria -- ver esZonaPrimariaParaSuClave en ocupacion.ts). Editar este archivo es la unica forma de cambiar esta asignacion; no hace falta tocar codigo TypeScript salvo que se agregue una zona con un nombreSvg nuevo que aun no exista aca.",
+  "zonas": [
+    { "nombreSvg": "Rack Doble", "zonaId": "doble", "claveExcel": "14. LATERALES", "_nota": "Guess: es la unica zona de LAYOUT_CD (14. LATERALES) y la unica zona geometrica (Rack Doble) que quedaban sin pareja -- ademas ambas tienen 0 lineas de picking hoy. Confirmar." },
+    { "nombreSvg": "Rack Simple", "zonaId": "simple", "claveExcel": "5. RACK SIMPLE" },
+    { "nombreSvg": "Rack Balda 2.2", "zonaId": "balda22", "claveExcel": null, "_nota": "No primaria de 4. RACK BALDA -- ver Rack Balda 1.4." },
+    { "nombreSvg": "Rack Balda 1.4", "zonaId": "balda14", "claveExcel": "4. RACK BALDA" },
+    { "nombreSvg": "Estanteria Multinivel", "zonaId": "estanteria", "claveExcel": "7. MEZANNINE" },
+    { "nombreSvg": "Bulk", "zonaId": "bulk", "claveExcel": "2. PISO" },
+    { "nombreSvg": "Llantas", "zonaId": "neumaticos", "claveExcel": "1. LLANTAS" },
+    { "nombreSvg": "Cluster Multinivel", "zonaId": "cluster", "claveExcel": "8. CLUSTER" },
+    { "nombreSvg": "Recibido", "zonaId": "recibo", "claveExcel": "10. UBICACIÓN RECIBO", "_nota": "Independiente de 'Recepcion Aereos' -- son dos zonas reales distintas (confirmado por posicion: Recibido esta abajo cerca de Bulk, Recepcion Aereos arriba). Antes estaban mal fusionadas bajo el zonaId 'recepcion' solo porque zonas.json ya traia esa clave_excel ahi por error; se corrigio moviendola a su propio zonaId 'recibo' (nueva zona en zonas.json)." },
+    { "nombreSvg": "Colgados", "zonaId": "colgantes", "claveExcel": "6. RACK COLGANTES" },
+    { "nombreSvg": "Mesa de Trabajo", "zonaId": "mesas", "claveExcel": null, "_nota": "Sin subdivision interna en el SVG todavia (0 espacios) -- no tiene equivalente en el Excel, se muestra solo el contorno." },
+    { "nombreSvg": "Recepcion Aereos", "zonaId": "recepcion", "claveExcel": null, "_nota": "Zona real independiente de 'Recibido' (ver nota de esa entrada) -- actualmente vacia, sin equivalente en el Excel. Sin subdivision interna en el SVG todavia (0 espacios), se muestra solo el contorno." }
+  ]
+}

@@ -17,6 +17,7 @@ from app.core.config import (
     ZONAS_NO_DESTINO,
 )
 from app.dominio.capacidad import calcular_capacidad
+from app.dominio.distancia_svg import calcular_layout_cd_svg, cargar_distancia_svg_por_zona
 from app.dominio.impacto import calcular_impacto_operativo, construir_base_maestra
 from app.dominio.indicadores import construir_pedidos_por_sku
 from app.dominio.kpis import calcular_kpis
@@ -45,6 +46,7 @@ def ejecutar_pipeline(
     pesos_score: dict[str, float] | None = None,
     porcentaje_max_movimiento: float | None = None,
     reglas: list[Regla] | None = None,
+    modo_distancia: str = "layout_cd",
 ) -> ResultadoPipeline:
     if datasets["sku_maestro"].empty or datasets["pedidos"].empty:
         raise SinLoteIngeridoError("No hay un lote ingerido. Llama POST /ingesta primero.")
@@ -62,6 +64,9 @@ def ejecutar_pipeline(
         pedidos_por_sku,
         datasets["layout_cd"],
     )
+    # "Actual Declarado" -- SIEMPRE con el layout_cd original del Excel,
+    # sin importar `modo_distancia`: es la referencia fija contra la que
+    # se compara cualquiera de las dos propuestas (ver KPIs más abajo).
     impacto = calcular_impacto_operativo(base, datasets["layout_cd"])
     base_con_score = calcular_score_prioridad(impacto.base_maestra, pesos_score, MAPA_ABC_SCORE)
 
@@ -74,9 +79,18 @@ def ejecutar_pipeline(
     reglas_atributo = aplicar_reglas_atributo(base_con_score, reglas)
     pares_incompatibles = pares_familias_incompatibles(reglas)
 
+    # Layout usado para OPTIMIZAR (decidir ZONA_RECOMENDADA) y para
+    # costear esa propuesta -- este sí cambia con `modo_distancia`. Con
+    # "svg" el optimizador puede recomendar zonas distintas: está
+    # minimizando contra un tiempo estimado por cercanía real, no el
+    # declarado.
+    layout_cd_optimizacion = datasets["layout_cd"]
+    if modo_distancia == "svg":
+        layout_cd_optimizacion = calcular_layout_cd_svg(datasets["layout_cd"], cargar_distancia_svg_por_zona())
+
     resultado_opt = ejecutar_optimizador(
         base_con_score,
-        datasets["layout_cd"],
+        layout_cd_optimizacion,
         capacidad,
         porcentaje_max_movimiento,
         zonas_no_destino=ZONAS_NO_DESTINO,
@@ -86,7 +100,7 @@ def ejecutar_pipeline(
         pares_familias_incompatibles=pares_incompatibles,
     )
     recomendaciones = construir_recomendaciones(
-        base_con_score, resultado_opt.zona_asignada, datasets["layout_cd"]
+        base_con_score, resultado_opt.zona_asignada, layout_cd_optimizacion
     )
     validar_factibilidad(recomendaciones, capacidad, resultado_opt.max_movimientos)
     n_pedidos = datasets["pedidos"]["PEDIDO_ID"].nunique()

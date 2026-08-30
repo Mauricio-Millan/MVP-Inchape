@@ -6,9 +6,10 @@ import { IngestaView } from './views/IngestaView';
 import { SkuSlottingView } from './views/SkuSlottingView';
 import { MapasView } from './views/MapasView';
 import { ReglasView } from './views/ReglasView';
+import { DashboardV2View } from './views/DashboardV2View';
 import './App.css';
 
-type Vista = 'resumen' | 'ingesta' | 'skus' | 'reglas' | 'mapas';
+type Vista = 'resumen' | 'ingesta' | 'skus' | 'reglas' | 'mapas' | 'dashboardV2';
 
 const SECCIONES: { id: Vista; etiqueta: string; descripcion: string }[] = [
   { id: 'resumen', etiqueta: 'Resumen', descripcion: 'Diagnóstico de hoy' },
@@ -16,6 +17,7 @@ const SECCIONES: { id: Vista; etiqueta: string; descripcion: string }[] = [
   { id: 'skus', etiqueta: 'SKU · Slotting', descripcion: 'Estado y explicabilidad' },
   { id: 'reglas', etiqueta: 'Reglas', descripcion: 'Restricciones por zona' },
   { id: 'mapas', etiqueta: 'Mapas', descripcion: 'Hoy vs. propuesta' },
+  { id: 'dashboardV2', etiqueta: 'Dashboard v2', descripcion: 'Mapa interactivo con zoom (D3)' },
 ];
 
 export default function App() {
@@ -69,6 +71,7 @@ export default function App() {
             {vista === 'skus' && <SkuSlottingView />}
             {vista === 'reglas' && <ReglasView />}
             {vista === 'mapas' && <MapasView />}
+            {vista === 'dashboardV2' && <DashboardV2View />}
           </main>
         </div>
       </div>

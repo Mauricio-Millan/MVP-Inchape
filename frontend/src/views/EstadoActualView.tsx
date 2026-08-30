@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { DetalleZona } from '../components/mapas/DetalleZona';
-import { MapaOcupacion } from '../components/mapas/MapaOcupacion';
+import { PlanoEscaneado } from '../components/mapas/PlanoEscaneado';
 import { EstadoPipeline } from '../components/ui/EstadoPipeline';
 import { usePipeline } from '../context/PipelineContext';
 import { useZonas, type Zona } from '../api/zonas';
@@ -18,15 +18,19 @@ export function EstadoActualView() {
 
   return (
     <>
-      <MapaOcupacion
+      <PlanoEscaneado
         titulo="Situación actual del almacén"
-        zonas={zonas}
-        recomendaciones={resultado.recomendaciones}
         campo="ZONA_ACTUAL"
-        onClickZona={setZonaDetalle}
+        recomendaciones={resultado.recomendaciones}
+        onClickZona={(id) => setZonaDetalle(zonas.find((z) => z.id === id) ?? null)}
       />
       {zonaDetalle && (
-        <DetalleZona zona={zonaDetalle} recomendaciones={resultado.recomendaciones} onClose={() => setZonaDetalle(null)} />
+        <DetalleZona
+          zona={zonaDetalle}
+          recomendaciones={resultado.recomendaciones}
+          campo="ZONA_ACTUAL"
+          onClose={() => setZonaDetalle(null)}
+        />
       )}
     </>
   );

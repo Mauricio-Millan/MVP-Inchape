@@ -47,7 +47,7 @@ Dos reglas se repiten en todo el código y son la clave para entenderlo:
 Todas las tablas viven en un único archivo SQLite (`mvp.db`), definidas en `app/core/db.py`. Se agrupan en tres bloques por su ciclo de vida:
 
 - **Lote vigente** (`sku_maestro`, `rotacion`, `stock_actual`, `layout_cd`, `ocupacion_zona`, `pedidos`): se **reemplazan por completo** en cada `POST /ingesta` exitoso — no es una tabla incremental, es la foto del último lote cargado.
-- **Estático** (`zonas`): geometría de las 13 zonas del plano vectorial, sembrada una sola vez al arrancar, independiente del lote de datos.
+- **Estático** (`zonas`): geometría de las 14 zonas del plano vectorial, sembrada una sola vez al arrancar, independiente del lote de datos.
 - **Resultado y configuración** (`reglas`, `resultados_ultimo_lote`, `lotes_ingesta`): sobreviven a través de ingestas sucesivas.
 - **Nivel 2, hoy vacías** (`slotting_inicial`, `historico_mensual`, `fecha_alta_sku`, `incidentes_ergonomicos`): esquema listo desde el día uno para cuando existan datos reales del CD Aldeas (ver §7).
 
@@ -367,7 +367,7 @@ sku_maestro:
 |---|---|---|---|
 | `GET` | `/salud` | — | `{"estado": "ok"}` |
 | `POST` | `/ingesta` | multipart, campo `archivo` (Excel) | `filas_aceptadas`, `filas_rechazadas` (con motivo), `resumen_por_tabla` |
-| `GET` | `/zonas` | — | Las 13 zonas geométricas + `distancia_absoluta_confirmada: false` |
+| `GET` | `/zonas` | — | Las 14 zonas geométricas + `distancia_absoluta_confirmada: false` |
 | `POST` | `/pipeline/ejecutar` | `{pesos_score?, porcentaje_max_movimiento?}` | `recomendaciones[]`, `kpis`, `banderas_activas`, `camino_decision_reglas[]`, `ml` (K, silhouette, perfil de clusters) |
 | `GET` | `/recomendaciones/{sku}` | — | Score desglosado por criterio, reglas que lo afectaron, cluster ML explicado |
 | `GET` | `/reglas` | — | Lista de reglas |

@@ -18,6 +18,17 @@
   font-size: 12.5px;
   color: var(--grafito2);
 }
+.peso-separador {
+  border: none;
+  border-top: 1px solid var(--linea);
+  margin: 16px 0;
+}
+.peso-nota {
+  font-size: 11.5px;
+  color: var(--grafito2);
+  line-height: 1.5;
+  margin: 0 0 14px;
+}
 .peso-lista-cambios {
   margin-top: 8px;
   font-size: 12px;

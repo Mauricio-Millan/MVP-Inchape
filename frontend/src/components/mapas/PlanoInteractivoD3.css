@@ -1,0 +1,349 @@
+.plano-d3-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.plano-d3-zoom-ctrl {
+  margin-left: auto;
+  align-items: center;
+}
+.plano-d3-zoom-ctrl button {
+  min-width: 34px;
+  font-size: 15px;
+}
+.plano-d3-zoom-nivel {
+  font-size: 11px;
+  color: var(--grafito2);
+  padding: 0 10px;
+  min-width: 40px;
+  text-align: center;
+}
+
+/* Heurística #1 (visibilidad del estado) + #6 (reconocer, no recordar):
+ * la leyenda de color queda siempre a la vista arriba del mapa, nunca
+ * hay que recordar qué significa cada tono. */
+.plano-d3-legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  color: var(--grafito2);
+  margin-bottom: 14px;
+  padding: 8px 12px;
+  background: var(--tiza);
+  border: 1px solid var(--linea);
+  border-radius: var(--radio-sm);
+}
+.plano-d3-legend-sep {
+  color: var(--grafito2);
+}
+.plano-d3-legend-barra {
+  display: inline-block;
+  width: 90px;
+  height: 8px;
+  border-radius: var(--radio-pill);
+  background: linear-gradient(to right, rgb(34, 197, 94), rgb(234, 179, 8), rgb(239, 68, 68));
+}
+.plano-d3-legend-chip {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+  margin-left: 6px;
+}
+.plano-d3-legend-chip.estado-disponible {
+  background: #c7c7cc;
+}
+.plano-d3-legend-chip.estado-ocupada {
+  background: var(--senal);
+}
+.plano-d3-legend-chip.estado-se_va {
+  background: var(--riesgo);
+}
+.plano-d3-legend-chip.estado-llega {
+  background: var(--exito);
+}
+
+.plano-d3-layout {
+  display: grid;
+  grid-template-columns: 200px 1fr 320px;
+  gap: 16px;
+  align-items: start;
+}
+@media (max-width: 1150px) {
+  .plano-d3-layout {
+    grid-template-columns: 200px 1fr;
+  }
+  .plano-d3-panel {
+    grid-column: 1 / -1;
+    min-height: 0;
+  }
+}
+@media (max-width: 760px) {
+  .plano-d3-layout {
+    grid-template-columns: 1fr;
+  }
+  .plano-d3-areas {
+    max-height: 180px;
+  }
+}
+
+/* Barra lateral de áreas -- heurísticas #6 (reconocer antes que
+ * recordar: nombre + color siempre visibles) y #7 (atajo directo a
+ * cualquier zona sin buscarla en el mapa). */
+.plano-d3-areas {
+  background: var(--tiza);
+  border: 1px solid var(--linea);
+  border-radius: var(--radio-md);
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 620px;
+  overflow-y: auto;
+}
+.plano-d3-area-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  border-radius: var(--radio-sm);
+  padding: 7px 8px;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  color: var(--grafito);
+  cursor: pointer;
+  text-align: left;
+}
+.plano-d3-area-item:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+.plano-d3-area-item.activa {
+  background: rgba(0, 113, 227, 0.1);
+  font-weight: 600;
+}
+.plano-d3-area-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.plano-d3-area-dot-todo {
+  background: var(--senal);
+}
+.plano-d3-area-nombre {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.plano-d3-area-pct {
+  font-size: 10.5px;
+  color: var(--grafito2);
+  flex-shrink: 0;
+}
+
+.plano-d3-panel-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+.plano-d3-panel-cerrar {
+  border: 0;
+  background: rgba(0, 0, 0, 0.06);
+  color: var(--grafito2);
+  border-radius: 50%;
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  cursor: pointer;
+  font-size: 11px;
+  line-height: 1;
+}
+.plano-d3-panel-cerrar:hover {
+  background: rgba(0, 0, 0, 0.12);
+  color: var(--grafito);
+}
+
+.plano-d3-wrap {
+  position: relative;
+  background: var(--tiza);
+  border: 1px solid var(--linea);
+  border-radius: var(--radio-md);
+  overflow: hidden;
+}
+.plano-d3-wrap .plan {
+  width: 100%;
+  height: 620px;
+  touch-action: none;
+  cursor: grab;
+}
+.plano-d3-wrap .plan:active {
+  cursor: grabbing;
+}
+
+/* Contorno completo del edificio -- solo contexto espacial, nunca
+ * clicable ni relleno (ver PlanoInteractivoD3.tsx). */
+.plano-d3-contorno {
+  fill: none;
+  stroke: var(--grafito2);
+  stroke-width: 1.5;
+  stroke-dasharray: 3, 3;
+  opacity: 0.35;
+  pointer-events: none;
+}
+
+.plano-d3-borde {
+  fill: none;
+  stroke: var(--grafito2);
+  stroke-width: 1;
+}
+.plano-d3-borde.seleccionada {
+  stroke: var(--senal);
+  stroke-width: 2;
+}
+/* Zonas sin subdivisión trazada todavía (Mesa de Trabajo, Recepción
+ * Aéreos) -- se rellenan apenas para que se lean como área real y no
+ * como espacio vacío, aunque no tengan ubicaciones individuales para
+ * colorear por calor. */
+.plano-d3-borde.sin-espacios {
+  fill: rgba(29, 29, 31, 0.06);
+}
+
+.plano-d3-zona {
+  cursor: pointer;
+}
+.plano-d3-zona:focus-visible {
+  outline: 2px solid var(--senal);
+  outline-offset: 2px;
+}
+
+.plano-d3-espacio {
+  stroke: var(--linea-fuerte);
+  stroke-width: 0.3;
+}
+.plano-d3-espacio.estado-disponible {
+  fill: #c7c7cc;
+}
+.plano-d3-espacio.estado-ocupada {
+  fill: var(--senal);
+}
+.plano-d3-espacio.estado-se_va {
+  fill: var(--riesgo);
+}
+.plano-d3-espacio.estado-llega {
+  fill: var(--exito);
+}
+.plano-d3-espacio:hover {
+  stroke: var(--grafito);
+  stroke-width: 0.8;
+}
+
+.plano-d3-etiqueta {
+  font-family: var(--font-sans);
+  font-size: 6px;
+  font-weight: 600;
+  fill: var(--grafito2);
+  pointer-events: none;
+}
+
+.plano-d3-tip {
+  position: absolute;
+  bottom: 10px;
+  left: 10px;
+  right: 10px;
+  max-width: 340px;
+  background: rgba(29, 29, 31, 0.92);
+  color: #fff;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  line-height: 1.4;
+  padding: 6px 12px;
+  border-radius: var(--radio-sm);
+  pointer-events: none;
+}
+
+.plano-d3-panel {
+  background: var(--tiza);
+  border: 1px solid var(--linea);
+  border-radius: var(--radio-md);
+  padding: 16px;
+  min-height: 620px;
+}
+.plano-d3-panel h3 {
+  font-family: var(--font-display);
+  font-size: 16px;
+  margin-bottom: 4px;
+}
+.plano-d3-panel-vacio {
+  font-size: 12.5px;
+  color: var(--grafito2);
+  line-height: 1.5;
+}
+
+.plano-d3-ocupacion-vol {
+  background: var(--tiza);
+  border: 1px solid var(--linea);
+  border-radius: var(--radio-sm);
+  padding: 10px 12px;
+  margin-bottom: 10px;
+}
+.plano-d3-ocupacion-vol-header {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--grafito);
+  margin-bottom: 6px;
+}
+.plano-d3-ocupacion-vol-barra {
+  height: 6px;
+  border-radius: var(--radio-pill);
+  background: rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+}
+.plano-d3-ocupacion-vol-fill {
+  height: 100%;
+  transition: width 0.3s ease;
+}
+.plano-d3-ocupacion-vol-detalle {
+  display: block;
+  font-size: 10.5px;
+  color: var(--grafito2);
+  margin-top: 5px;
+}
+
+.plano-d3-tabla-destino {
+  font-size: 10px;
+  color: var(--grafito2);
+  margin-top: 2px;
+  white-space: nowrap;
+}
+
+.plano-d3-tabla-wrap {
+  overflow-x: auto;
+  margin-top: 8px;
+}
+.plano-d3-tabla {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.plano-d3-tabla th {
+  text-align: left;
+  color: var(--grafito2);
+  font-weight: 600;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--linea);
+  white-space: nowrap;
+}
+.plano-d3-tabla td {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--linea);
+  white-space: nowrap;
+}

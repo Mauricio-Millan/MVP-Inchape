@@ -1,4 +1,5 @@
 import type { RecomendacionSKU } from '../../api/pipeline';
+import { colorCalor } from '../../lib/colorCalor';
 import { distribuirEnPlantilla, PLANTILLAS_ZONA, PLANTILLA_DEFECTO } from './plantillasZona';
 import { ESPACIOS_ZONA, distribuirEnEspacios } from './espaciosZona';
 import './GrillaSkus.css';
@@ -6,10 +7,7 @@ import './GrillaSkus.css';
 export type EstadoSlot = 'entra' | 'sale' | 'normal';
 export type ModoColorGrilla = 'movimiento' | 'rotacion';
 
-export function colorCalor(intensidad: number): string {
-  const pct = Math.round(Math.max(0, Math.min(1, intensidad)) * 100);
-  return `color-mix(in srgb, #0F5F8F ${pct}%, #DCE6ED)`;
-}
+export { colorCalor };
 
 /** Disposición tipo "asientos de cine". Para las zonas con capacidad
  * real definida (`espaciosZona.ts`) muestra ocupados + libres sobre un

@@ -90,8 +90,8 @@ svg.plan {
 }
 .zone {
   /* Oscuro y fijo, no blanco -- una zona sin ocupación se pinta de
-   * blanco (ver fill() en MapaOcupacion/colorModos), y un borde blanco
-   * sobre relleno blanco la hacía desaparecer del mapa por completo. */
+   * blanco (ver fill() en colorModos), y un borde blanco sobre relleno
+   * blanco la hacía desaparecer del mapa por completo. */
   stroke: rgba(29, 29, 31, 0.35);
   stroke-linejoin: round;
   cursor: pointer;
@@ -115,37 +115,12 @@ svg.plan {
   stroke-width: 3px;
   stroke-linejoin: round;
 }
-.lbl.sm {
-  font-family: var(--font-mono);
-  font-weight: 500;
-  stroke-width: 2.5px;
-}
 .plano-contorno {
   fill: none;
   stroke: var(--grafito);
   stroke-width: 1.4;
   stroke-linejoin: round;
   opacity: 0.5;
-}
-.dock {
-  fill: #fff;
-  stroke: var(--riesgo);
-  stroke-width: 1.1;
-}
-.docknum {
-  font-family: var(--font-mono);
-  font-size: 6.5px;
-  fill: var(--riesgo);
-  pointer-events: none;
-}
-.grid-m {
-  stroke: rgba(0, 0, 0, 0.05);
-  stroke-width: 0.8;
-}
-.io {
-  fill: var(--oro);
-  stroke: #fff;
-  stroke-width: 1.5;
 }
 
 .tip {

@@ -27,7 +27,7 @@ export function fetchZonas(): Promise<RespuestaZonas> {
   return apiFetch<RespuestaZonas>('/zonas');
 }
 
-/** Compartido entre PlanoSVG y MapaOcupacion -- geometría estática, se
+/** Compartido entre las vistas de mapas -- geometría estática, se
  * pide una sola vez por vista que la monte, nunca se duplica la lógica
  * de fetch/estado de carga. */
 export function useZonas() {

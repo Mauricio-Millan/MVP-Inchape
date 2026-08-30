@@ -5,6 +5,7 @@ from sqlalchemy import delete, insert
 
 from app.core.db import engine, leer_tablas_lote, resultados_ultimo_lote
 from app.core.flags import evaluar_banderas
+from app.dominio.distancia_svg import DistanciaSvgNoDisponibleError
 from app.dominio.optimizador import OptimizadorInfactibleError
 from app.dominio.pipeline import SinLoteIngeridoError, ejecutar_pipeline
 from app.dominio.recomendaciones import FactibilidadError
@@ -25,16 +26,25 @@ def ejecutar(solicitud: SolicitudPipeline | None = None) -> RespuestaPipeline:
     reglas = listar_reglas()
     try:
         resultado = ejecutar_pipeline(
-            datasets, solicitud.pesos_score, solicitud.porcentaje_max_movimiento, reglas
+            datasets,
+            solicitud.pesos_score,
+            solicitud.porcentaje_max_movimiento,
+            reglas,
+            solicitud.modo_distancia,
         )
     except SinLoteIngeridoError as e:
         raise HTTPException(422, detail=str(e)) from e
     except (OptimizadorInfactibleError, FactibilidadError) as e:
         raise HTTPException(409, detail=str(e)) from e
+    except DistanciaSvgNoDisponibleError as e:
+        raise HTTPException(422, detail=str(e)) from e
 
     _persistir_resultado(resultado.recomendaciones)
 
     filas = resultado.recomendaciones.rename(columns={"AHORRO_%": "AHORRO_PORCENTAJE"}).to_dict("records")
+    capacidad_zonas = (
+        datasets["layout_cd"].dropna(subset=["CAPACIDAD_M3_MAX"]).set_index("ZONA")["CAPACIDAD_M3_MAX"].to_dict()
+    )
     return RespuestaPipeline(
         recomendaciones=filas,
         kpis=Kpis(**resultado.kpis),
@@ -47,6 +57,7 @@ def ejecutar(solicitud: SolicitudPipeline | None = None) -> RespuestaPipeline:
             variables_usadas=resultado.ml.variables_usadas,
             perfil_clusters=resultado.ml.perfil_clusters.to_dict("records"),
         ),
+        capacidad_zonas=capacidad_zonas,
     )
 
 

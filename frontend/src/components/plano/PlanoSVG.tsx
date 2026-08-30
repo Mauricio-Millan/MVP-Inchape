@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from 'react';
 import { useZonas, type Zona } from '../../api/zonas';
 import { calcularFill, esTextoClaro, ETIQUETA_MODO, type Modo } from './colorModos';
-import { PlanoBase } from './PlanoBase';
+import { CONTORNO_REAL_POR_ZONA, PlanoBase } from './PlanoBase';
 import './PlanoSVG.css';
 
 interface TooltipState {
@@ -26,8 +26,8 @@ export function PlanoSVG() {
   }
 
   // El foco por teclado no trae coordenadas de mouse -- se posiciona el
-  // tooltip junto al propio polígono enfocado, no junto al cursor.
-  function mostrarTooltipEnElemento(zona: Zona, e: React.FocusEvent<SVGPolygonElement>) {
+  // tooltip junto al propio contorno enfocado, no junto al cursor.
+  function mostrarTooltipEnElemento(zona: Zona, e: React.FocusEvent<SVGPathElement>) {
     const caja = planoRef.current?.getBoundingClientRect();
     const elemento = e.currentTarget.getBoundingClientRect();
     if (!caja) return;
@@ -88,9 +88,11 @@ export function PlanoSVG() {
         <Leyenda zonas={zonas} modo={modo} />
 
         <p className="caption">
+          Contorno real del edificio y de cada zona, del layout escaneado ({Object.keys(CONTORNO_REAL_POR_ZONA).length}{' '}
+          de {zonas.length} zonas ya trazadas — el resto sigue en la tabla de abajo, sin geometría todavía).{' '}
           {distanciaConfirmada
             ? 'Escala y punto I/O confirmados con una medición real del plano.'
-            : 'Distancias medidas al centro del muro de muelles bajo una calibración de referencia (L = 110 m para el recorrido más largo). El punto I/O es un supuesto pendiente de confirmar en planta.'}
+            : 'Distancias medidas al centro del muro de muelles bajo una calibración de referencia (L = 110 m para el recorrido más largo). El punto I/O es un supuesto pendiente de confirmar en planta — por eso ya no se dibuja un punto I/O ni una escala en metros sobre el plano real: no hay una posición ni una conversión metros/píxel confirmadas todavía para este escaneo.'}
         </p>
       </div>
 

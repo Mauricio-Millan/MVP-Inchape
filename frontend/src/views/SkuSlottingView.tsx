@@ -49,6 +49,9 @@ type FiltroMovimiento = 'TODOS' | 'MOVER' | 'MANTENER';
 export function SkuSlottingView() {
   const { resultado, anterior, cargando, ejecutar } = usePipeline();
   const [pesos, setPesos] = useState({ ahorro: 55, rotacion: 20, abc: 10, facilidad_movimiento: 15 });
+  // 20% -- mismo default que PORCENTAJE_MAX_MOVIMIENTO en config.py del
+  // backend; acá solo se refleja, nunca se hardcodea un valor distinto.
+  const [porcentajeMaxMovimiento, setPorcentajeMaxMovimiento] = useState(20);
   const [busqueda, setBusqueda] = useState('');
   const [filtroMovimiento, setFiltroMovimiento] = useState<FiltroMovimiento>('TODOS');
   const [orden, setOrden] = useState<{ columna: Columna; asc: boolean }>({ columna: 'SCORE_PRIORIDAD', asc: false });
@@ -67,12 +70,15 @@ export function SkuSlottingView() {
 
   async function recalcular() {
     if (sumaPesos === 0) return;
-    await ejecutar({
-      ahorro: pesos.ahorro / sumaPesos,
-      rotacion: pesos.rotacion / sumaPesos,
-      abc: pesos.abc / sumaPesos,
-      facilidad_movimiento: pesos.facilidad_movimiento / sumaPesos,
-    });
+    await ejecutar(
+      {
+        ahorro: pesos.ahorro / sumaPesos,
+        rotacion: pesos.rotacion / sumaPesos,
+        abc: pesos.abc / sumaPesos,
+        facilidad_movimiento: pesos.facilidad_movimiento / sumaPesos,
+      },
+      porcentajeMaxMovimiento / 100,
+    );
   }
 
   const filas = useMemo(() => {
@@ -140,6 +146,31 @@ export function SkuSlottingView() {
               </span>
             </label>
           ))}
+          <hr className="peso-separador" />
+
+          <label className="peso-fila">
+            <span className="peso-etiqueta">Tope de SKU a mover</span>
+            <input
+              type="range"
+              min={1}
+              max={100}
+              value={porcentajeMaxMovimiento}
+              onChange={(e) => setPorcentajeMaxMovimiento(Number(e.target.value))}
+            />
+            <span className="mono peso-valor">{porcentajeMaxMovimiento}%</span>
+          </label>
+          <p className="peso-nota">
+            Restricción dura del optimizador (`porcentaje_max_movimiento`), no un criterio de puntuación — sube o baja
+            cuántos SKU como máximo puede reubicar por corrida.
+            {resultado && (
+              <>
+                {' '}
+                Con el tope actual: <b>{resultado.kpis.max_movimientos_permitidos}</b> de{' '}
+                <b>{resultado.kpis.sku_analizados}</b> SKU ({resultado.kpis.sku_movidos} movidos en esta corrida).
+              </>
+            )}
+          </p>
+
           <button className="boton" disabled={cargando || sumaPesos === 0} onClick={recalcular}>
             {cargando ? 'Recalculando…' : 'Recalcular con estos pesos'}
           </button>

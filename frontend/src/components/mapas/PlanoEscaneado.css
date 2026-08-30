@@ -8,10 +8,32 @@
 .plano-esc-wrap {
   position: relative;
   background: var(--tiza);
+  display: flex;
+  justify-content: center;
+}
+/* El viewBox se recorta al bounding box real de las zonas trazadas (ver
+ * PlanoEscaneado.tsx) -- es más angosto y alto que el edificio completo,
+ * así que se limita el ancho en vez de estirarlo a 100% (se vería
+ * desmedidamente alto) y se deja centrado. */
+.plano-esc-wrap .plan {
+  width: auto;
+  height: auto;
+  max-width: 620px;
+  max-height: 720px;
 }
 
+/* Nunca se rellena el contorno de la zona -- solo se colorean los
+ * espacios individuales de adentro (ver PlanoEscaneado.tsx). `fill:
+ * transparent`, no `fill: none` -- a simple vista da lo mismo (invisible
+ * en los dos casos), pero `none` excluye el interior del hit-test de
+ * click/hover en SVG: una zona sin espacios reales todavía (ej.
+ * "Recepción de aéreos") solo se podía clickear parada exactamente
+ * sobre la línea de 1px del borde, prácticamente imposible en la
+ * práctica. `transparent` sigue contando como "pintado" para el click,
+ * así que toda el área de la zona queda clickeable, tenga o no
+ * espacios reales adentro. */
 .plano-esc-borde {
-  fill: rgba(0, 113, 227, 0.06);
+  fill: transparent;
   stroke: var(--grafito2);
   stroke-width: 1;
 }
@@ -25,11 +47,20 @@
   stroke-width: 0.3;
   cursor: help;
 }
-.plano-esc-espacio.ocupado {
+/* Mismos 4 colores que VistaAsientosReales (movimientoReal.ts calcula
+ * el mismo estado en los dos lugares) -- gris explícito para
+ * disponible, nunca blanco, para distinguirse del contorno sin relleno. */
+.plano-esc-espacio.estado-disponible {
+  fill: #c7c7cc;
+}
+.plano-esc-espacio.estado-ocupada {
   fill: var(--senal);
 }
-.plano-esc-espacio.libre {
-  fill: rgba(0, 0, 0, 0.04);
+.plano-esc-espacio.estado-se_va {
+  fill: var(--riesgo);
+}
+.plano-esc-espacio.estado-llega {
+  fill: var(--exito);
 }
 .plano-esc-espacio:hover {
   stroke: var(--grafito);
@@ -41,16 +72,20 @@
   font-size: 6px;
   font-weight: 600;
   fill: var(--grafito2);
+  pointer-events: none;
 }
 
 .plano-esc-tip {
   position: absolute;
   bottom: 10px;
   left: 10px;
+  right: 10px;
+  max-width: 340px;
   background: rgba(29, 29, 31, 0.92);
   color: #fff;
   font-family: var(--font-sans);
   font-size: 12px;
+  line-height: 1.4;
   padding: 6px 12px;
   border-radius: var(--radio-sm);
   pointer-events: none;

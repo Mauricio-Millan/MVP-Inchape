@@ -17,6 +17,10 @@ DATA_DIR = BASE_DIR / "data"
 DB_PATH = Path(os.environ.get("MVP_DB_PATH", BASE_DIR / "mvp.db"))
 CONFIG_MAPEO_DEFAULT_PATH = DATA_DIR / "config_mapeo.yaml"
 ZONAS_JSON_PATH = DATA_DIR / "zonas.json"
+# Distancia real (SVG, no metros) de cada zona de LAYOUT_CD a "Mesas de
+# trabajo" -- generado por scripts/calcular_distancia_svg_zonas.py, ver
+# app/dominio/distancia_svg.py.
+DISTANCIA_SVG_JSON_PATH = DATA_DIR / "distancia_svg_por_zona.json"
 
 # CORS -- orígenes permitidos del frontend Vite en desarrollo local
 CORS_ORIGINS = [

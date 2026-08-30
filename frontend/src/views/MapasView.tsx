@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { DetalleZona } from '../components/mapas/DetalleZona';
-import { MapaOcupacion } from '../components/mapas/MapaOcupacion';
 import { PlanoEscaneado } from '../components/mapas/PlanoEscaneado';
 import { agruparPorZonaExcel, zonasSinGeometria } from '../components/mapas/ocupacion';
 import { PlanoSVG } from '../components/plano/PlanoSVG';
@@ -13,6 +12,10 @@ export function MapasView() {
   const { resultado } = usePipeline();
   const { zonas, error: errorZonas } = useZonas();
   const [zonaDetalle, setZonaDetalle] = useState<Zona | null>(null);
+  // Cuál de los dos mapas (Hoy/Propuesta) abrió el detalle -- decide si
+  // VistaAsientosReales muestra la ocupación de hoy o la propuesta como
+  // primaria, no siempre la misma sin importar desde dónde se hizo click.
+  const [campoDetalle, setCampoDetalle] = useState<'ZONA_ACTUAL' | 'ZONA_RECOMENDADA'>('ZONA_ACTUAL');
 
   if (!resultado) {
     return <EstadoPipeline mensaje="Ejecuta el pipeline para comparar el slotting actual contra el recomendado." />;
@@ -25,9 +28,12 @@ export function MapasView() {
   }
 
   const zonasCargadas = zonas;
-  function abrirPorId(zonaId: string) {
+  function abrirPorId(zonaId: string, campo: 'ZONA_ACTUAL' | 'ZONA_RECOMENDADA') {
     const z = zonasCargadas.find((zona) => zona.id === zonaId);
-    if (z) setZonaDetalle(z);
+    if (z) {
+      setZonaDetalle(z);
+      setCampoDetalle(campo);
+    }
   }
 
   const ocupacionActual = agruparPorZonaExcel(resultado.recomendaciones, 'ZONA_ACTUAL');
@@ -53,27 +59,28 @@ export function MapasView() {
       <p className="mapas-ayuda">Haz click en una zona de cualquiera de los dos mapas para ver qué SKU hay ahí.</p>
 
       <div className="mapas-grid">
-        <MapaOcupacion
+        <PlanoEscaneado
           titulo="Hoy"
-          zonas={zonas}
-          recomendaciones={resultado.recomendaciones}
           campo="ZONA_ACTUAL"
-          onClickZona={setZonaDetalle}
-        />
-        <MapaOcupacion
-          titulo="Propuesta de slotting"
-          zonas={zonas}
           recomendaciones={resultado.recomendaciones}
+          onClickZona={(id) => abrirPorId(id, 'ZONA_ACTUAL')}
+        />
+        <PlanoEscaneado
+          titulo="Propuesta de slotting"
           campo="ZONA_RECOMENDADA"
-          onClickZona={setZonaDetalle}
+          recomendaciones={resultado.recomendaciones}
+          onClickZona={(id) => abrirPorId(id, 'ZONA_RECOMENDADA')}
         />
       </div>
 
       {zonaDetalle && (
-        <DetalleZona zona={zonaDetalle} recomendaciones={resultado.recomendaciones} onClose={() => setZonaDetalle(null)} />
+        <DetalleZona
+          zona={zonaDetalle}
+          recomendaciones={resultado.recomendaciones}
+          campo={campoDetalle}
+          onClose={() => setZonaDetalle(null)}
+        />
       )}
-
-      <PlanoEscaneado recomendaciones={resultado.recomendaciones} onClickZona={abrirPorId} />
 
       <h2 className="mapas-referencia-titulo">Referencia: geometría y técnica de almacenamiento</h2>
       <PlanoSVG />

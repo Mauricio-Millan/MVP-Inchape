@@ -60,10 +60,15 @@ function skusAfectados(
 export function DetalleZona({
   zona,
   recomendaciones,
+  campo,
   onClose,
 }: {
   zona: Zona;
   recomendaciones: RecomendacionSKU[];
+  /** Cuál mapa abrió este detalle -- decide, para la vista de espacios
+   * reales, si se muestra la ocupación de hoy o la propuesta como
+   * primaria (ver `VistaAsientosReales`/`movimientoReal.ts`). */
+  campo: 'ZONA_ACTUAL' | 'ZONA_RECOMENDADA';
   onClose: () => void;
 }) {
   const { skusHoy, skusPropuesta, entranSet, salenSet } = useMemo(() => {
@@ -86,7 +91,7 @@ export function DetalleZona({
   const estadoHoy = (r: RecomendacionSKU): EstadoSlot => (salenSet.has(r.SKU) ? 'sale' : 'normal');
   const estadoPropuesta = (r: RecomendacionSKU): EstadoSlot => (entranSet.has(r.SKU) ? 'entra' : 'normal');
 
-  const [modoColor, setModoColor] = useState<ModoColorGrilla>('movimiento');
+  const [modoColor, setModoColor] = useState<ModoColorGrilla>('rotacion');
   const rangoRotacion = useMemo(() => {
     const valores = recomendaciones.map((r) => r.ROTACION_6M);
     return { min: Math.min(...valores), max: Math.max(...valores) };
@@ -220,6 +225,7 @@ export function DetalleZona({
               zonaReal={zonaReal}
               claveExcel={infoEscaneada!.claveExcel}
               recomendaciones={recomendaciones}
+              campo={campo}
             />
           </>
         ) : (

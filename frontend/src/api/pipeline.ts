@@ -72,6 +72,12 @@ export interface RespuestaPipeline {
   banderas_activas: BanderasActivas;
   camino_decision_reglas: DecisionRegla[];
   ml: MetricasML;
+  /** Espacio total declarado por zona en m³ (`CAPACIDAD_M3_MAX` de
+   * LAYOUT_CD, clave = `clave_excel`) -- para calcular ocupación por
+   * volumen (suma de `VOLUMEN_M3` de los SKU de la zona / esto), no
+   * conteo de posiciones. Ausente = esa zona no trajo capacidad
+   * declarada en el Excel de este lote. */
+  capacidad_zonas: Record<string, number>;
 }
 
 export interface PesosScore {
@@ -81,13 +87,25 @@ export interface PesosScore {
   facilidad_movimiento: number;
 }
 
+/** "layout_cd" (default) = TIEMPO_MINUTOS declarado en el Excel. "svg" =
+ * tiempo calibrado por regresión contra la distancia real medida en el
+ * layout escaneado del almacén -- el optimizador puede recomendar zonas
+ * distintas en cada modo, no es solo un recálculo de KPI (ver
+ * `LAYOUT-SVG-ESCANEADO.md` §9 / `app/dominio/distancia_svg.py`). */
+export type ModoDistancia = 'layout_cd' | 'svg';
+
 export function ejecutarPipeline(
   pesos_score?: PesosScore,
   porcentaje_max_movimiento?: number,
+  modo_distancia?: ModoDistancia,
 ): Promise<RespuestaPipeline> {
   return apiFetch<RespuestaPipeline>('/pipeline/ejecutar', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ pesos_score: pesos_score ?? null, porcentaje_max_movimiento: porcentaje_max_movimiento ?? null }),
+    body: JSON.stringify({
+      pesos_score: pesos_score ?? null,
+      porcentaje_max_movimiento: porcentaje_max_movimiento ?? null,
+      modo_distancia: modo_distancia ?? 'layout_cd',
+    }),
   });
 }
