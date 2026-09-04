@@ -22,6 +22,10 @@ jobs:
           username: ${{ secrets.ACR_USERNAME }}
           password: ${{ secrets.ACR_PASSWORD }}
 
+      # push a :latest dispara el webhook de ACR (az acr webhook create,
+      # scope mvp-inchape-backend:latest) que redespliega el Web App solo --
+      # más simple y robusto que azure/webapps-deploy, que falla contra Kudu
+      # en este App Service ("Failed to get app runtime OS").
       - uses: docker/build-push-action@v6
         with:
           context: ./backend
@@ -29,9 +33,3 @@ jobs:
           tags: |
             ${{ env.ACR_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
             ${{ env.ACR_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:latest
-
-      - uses: azure/webapps-deploy@v3
-        with:
-          app-name: mvp-inchape-api
-          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
-          images: ${{ env.ACR_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
