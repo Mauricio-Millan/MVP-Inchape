@@ -38,7 +38,7 @@ export function MapasView() {
     }
   }
 
-  function abrirMapa3D() {
+  const abrirMapa3D = () => {
     entregarDatos3D({
       recomendaciones: resultado.recomendaciones,
       modoObjetivo: resultado.modo_objetivo,
@@ -46,7 +46,7 @@ export function MapasView() {
       generadoEn: Date.now(),
     });
     window.open('/#mapa3d', '_blank');
-  }
+  };
 
   const ocupacionActual = agruparPorZonaExcel(resultado.recomendaciones, 'ZONA_ACTUAL');
   const ocupacionPropuesta = agruparPorZonaExcel(resultado.recomendaciones, 'ZONA_RECOMENDADA');

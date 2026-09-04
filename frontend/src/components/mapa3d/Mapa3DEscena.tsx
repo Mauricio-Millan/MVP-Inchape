@@ -250,7 +250,7 @@ export const Mapa3DEscena = forwardRef<Mapa3DEscenaHandle, { datos: EscenaCompar
 
     const ray = new THREE.Raycaster();
     const mouse = new THREE.Vector2();
-    function onMouseMove(e: MouseEvent) {
+    const onMouseMove = (e: MouseEvent) => {
       const rect = contenedor.getBoundingClientRect();
       mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
       mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
@@ -258,14 +258,14 @@ export const Mapa3DEscena = forwardRef<Mapa3DEscenaHandle, { datos: EscenaCompar
       const hits = ray.intersectObjects(meshes);
       if (hits.length) setHover({ clientX: e.clientX, clientY: e.clientY, texto: textoTooltip(hits[0].object.userData as CajaEscena3D) });
       else setHover(null);
-    }
+    };
     contenedor.addEventListener('mousemove', onMouseMove);
 
-    function onResize() {
+    const onResize = () => {
       camera.aspect = contenedor.clientWidth / contenedor.clientHeight;
       camera.updateProjectionMatrix();
       renderer.setSize(contenedor.clientWidth, contenedor.clientHeight);
-    }
+    };
     window.addEventListener('resize', onResize);
 
     let vivo = true;
