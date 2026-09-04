@@ -1,0 +1,6 @@
+__pycache__
+*.pyc
+tests
+mvp.db
+*.log
+.pytest_cache

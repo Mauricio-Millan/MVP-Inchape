@@ -1,0 +1,37 @@
+name: Deploy backend
+
+on:
+  push:
+    branches: [dev-inchape, main]
+    paths: ["backend/**", ".github/workflows/backend-deploy.yml"]
+  workflow_dispatch:
+
+env:
+  ACR_LOGIN_SERVER: mvpinchape.azurecr.io
+  IMAGE_NAME: mvp-inchape-backend
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.ACR_LOGIN_SERVER }}
+          username: ${{ secrets.ACR_USERNAME }}
+          password: ${{ secrets.ACR_PASSWORD }}
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          push: true
+          tags: |
+            ${{ env.ACR_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+            ${{ env.ACR_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:latest
+
+      - uses: azure/webapps-deploy@v3
+        with:
+          app-name: mvp-inchape-api
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+          images: ${{ env.ACR_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
