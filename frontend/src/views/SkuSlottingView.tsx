@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Badge } from '../components/ui/Badge';
 import { EstadoPipeline } from '../components/ui/EstadoPipeline';
+import { TarjetaKpi } from '../components/ui/TarjetaKpi';
 import { usePipeline } from '../context/PipelineContext';
 import { ApiError } from '../api/config';
 import { fetchDetalleSku, type RespuestaRecomendacionSKU } from '../api/recomendaciones';
@@ -9,6 +10,16 @@ import { colorCalor } from '../lib/colorCalor';
 import { exportarPropuestaSlotting } from '../lib/exportarSlotting';
 import { EtiquetaModelo } from '../components/ui/EtiquetaModelo';
 import './SkuSlottingView.css';
+
+/** Estado de revisión humana de un candidato a reubicar -- SOLO en esta
+ * sesión del navegador (`useState`, nunca persistido). Se resetea cada
+ * vez que llega un `resultado` nuevo (recalcular pesos, cambiar de
+ * modelo, o volver a ejecutar el pipeline) porque el propio set de
+ * candidatos cambia -- no tendría sentido arrastrar una decisión de
+ * "aprobado" a un SKU que en la corrida nueva ni siquiera se mueve.
+ * Nunca escribe a `/reglas` ni a ningún otro estado del backend: es
+ * una anotación visual, no una acción sobre el WMS. */
+type EstadoDecision = 'pendiente' | 'aprobado' | 'rechazado';
 
 /** `SCORE_PRIORIDAD` (fórmula ponderada editable, ver `CRITERIOS`/pesos
  * arriba) y `PERFIL_ML`/`PRIORIDAD_CLUSTER_RANK` (ranking de clusters
@@ -94,7 +105,75 @@ export function SkuSlottingView() {
   const [errorDetalle, setErrorDetalle] = useState<string | null>(null);
   const [cargandoDetalle, setCargandoDetalle] = useState<string | null>(null);
 
+  // Panel de aprobación -- ver comentario de EstadoDecision arriba.
+  const [decisiones, setDecisiones] = useState<Record<string, EstadoDecision>>({});
+  const [seleccionados, setSeleccionados] = useState<Set<string>>(new Set());
+  const [busquedaCandidatos, setBusquedaCandidatos] = useState('');
+  const [filtroPerfil, setFiltroPerfil] = useState('TODOS');
+
+  // Resetea el panel de aprobación cuando llega un `resultado` nuevo --
+  // ajuste de estado durante el render (patrón documentado de React),
+  // no un useEffect: evita el ciclo extra de render-commit-efecto-render
+  // que un useEffect con esta misma lógica dispararía.
+  const [resultadoAnterior, setResultadoAnterior] = useState(resultado);
+  if (resultado !== resultadoAnterior) {
+    setResultadoAnterior(resultado);
+    setDecisiones({});
+    setSeleccionados(new Set());
+  }
+
   const sumaPesos = pesos.ahorro + pesos.rotacion + pesos.abc + pesos.facilidad_movimiento;
+
+  const candidatos = useMemo(
+    () => (resultado ? resultado.recomendaciones.filter((r) => r.MOVIMIENTO === 'MOVER') : []),
+    [resultado],
+  );
+  const perfilesDisponibles = useMemo(
+    () => [...new Set(candidatos.map((r) => r.PERFIL_ML))],
+    [candidatos],
+  );
+  const candidatosFiltrados = useMemo(() => {
+    const texto = busquedaCandidatos.trim().toUpperCase();
+    return candidatos
+      .filter((r) => filtroPerfil === 'TODOS' || r.PERFIL_ML === filtroPerfil)
+      .filter((r) => !texto || r.SKU.includes(texto) || r.FAMILIA.toUpperCase().includes(texto));
+  }, [candidatos, busquedaCandidatos, filtroPerfil]);
+  const aprobados = useMemo(() => Object.values(decisiones).filter((d) => d === 'aprobado').length, [decisiones]);
+  const impactoAlto = useMemo(() => candidatos.filter((r) => r.PERFIL_ML.includes('alto')).length, [candidatos]);
+  const ahorroPotencialTotal = useMemo(
+    () => candidatos.reduce((acc, r) => acc + r.AHORRO_ESTIMADO_MIN, 0),
+    [candidatos],
+  );
+  const pendientesFiltrados = useMemo(
+    () => candidatosFiltrados.filter((r) => (decisiones[r.SKU] ?? 'pendiente') === 'pendiente'),
+    [candidatosFiltrados, decisiones],
+  );
+
+  function alternarSeleccion(sku: string) {
+    setSeleccionados((prev) => {
+      const siguiente = new Set(prev);
+      if (siguiente.has(sku)) siguiente.delete(sku);
+      else siguiente.add(sku);
+      return siguiente;
+    });
+  }
+
+  function seleccionarPendientes() {
+    setSeleccionados(new Set(pendientesFiltrados.map((r) => r.SKU)));
+  }
+
+  function decidir(skus: string[], estado: EstadoDecision) {
+    setDecisiones((prev) => {
+      const siguiente = { ...prev };
+      for (const sku of skus) siguiente[sku] = estado;
+      return siguiente;
+    });
+    setSeleccionados((prev) => {
+      const siguiente = new Set(prev);
+      for (const sku of skus) siguiente.delete(sku);
+      return siguiente;
+    });
+  }
 
   const cambios = useMemo(() => {
     if (!resultado || !anterior) return null;
@@ -249,6 +328,104 @@ export function SkuSlottingView() {
 
       <section className="panel">
         <header>
+          <h2>Candidatos a reubicar · panel de aprobación</h2>
+          <span className="note">Decisión visual de esta sesión — no escribe reglas ni al WMS</span>
+        </header>
+        <div className="panel-body">
+          {candidatos.length === 0 ? (
+            <p className="peso-nota">Ningún SKU tiene una zona recomendada distinta a la actual en esta corrida.</p>
+          ) : (
+            <>
+              <div className="grid-kpi" style={{ marginBottom: 18 }}>
+                <TarjetaKpi etiqueta="Candidatos a revisar" valor={String(candidatos.length)} />
+                <TarjetaKpi etiqueta="Impacto alto" valor={String(impactoAlto)} tono={impactoAlto > 0 ? 'riesgo' : undefined} />
+                <TarjetaKpi etiqueta="Aprobados" valor={String(aprobados)} tono={aprobados > 0 ? 'positivo' : undefined} />
+                <TarjetaKpi etiqueta="Ahorro potencial total" valor={`${ahorroPotencialTotal.toFixed(0)} min`} />
+              </div>
+
+              <div className="skus-filtros">
+                <input
+                  className="skus-buscar"
+                  type="search"
+                  placeholder="Buscar SKU o familia…"
+                  value={busquedaCandidatos}
+                  onChange={(e) => setBusquedaCandidatos(e.target.value)}
+                />
+                <div className="ctrl" role="group" aria-label="Filtrar por perfil de impacto">
+                  <button aria-pressed={filtroPerfil === 'TODOS'} onClick={() => setFiltroPerfil('TODOS')}>
+                    Todos
+                  </button>
+                  {perfilesDisponibles.map((perfil) => (
+                    <button key={perfil} aria-pressed={filtroPerfil === perfil} onClick={() => setFiltroPerfil(perfil)}>
+                      {perfil}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="skus-board-acciones">
+                <button
+                  className="boton boton-secundario"
+                  disabled={pendientesFiltrados.length === 0}
+                  onClick={seleccionarPendientes}
+                >
+                  Seleccionar pendientes ({pendientesFiltrados.length})
+                </button>
+                <button
+                  className="boton"
+                  disabled={seleccionados.size === 0}
+                  onClick={() => decidir([...seleccionados], 'aprobado')}
+                >
+                  Aprobar ({seleccionados.size})
+                </button>
+                <button
+                  className="boton boton-secundario"
+                  disabled={seleccionados.size === 0}
+                  onClick={() => decidir([...seleccionados], 'rechazado')}
+                >
+                  Rechazar ({seleccionados.size})
+                </button>
+              </div>
+
+              <div className="scroll">
+                <table className="skus-tabla">
+                  <thead>
+                    <tr>
+                      <th></th>
+                      <th>SKU</th>
+                      <th>Perfil ML</th>
+                      <th>Zona actual</th>
+                      <th>Zona rec.</th>
+                      <th style={{ textAlign: 'right' }}>Score</th>
+                      <th style={{ textAlign: 'right' }}>Ahorro</th>
+                      <th>Justificación</th>
+                      <th>Estado</th>
+                      <th>Acción</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {candidatosFiltrados.map((r) => (
+                      <FilaCandidato
+                        key={r.SKU}
+                        r={r}
+                        estado={decisiones[r.SKU] ?? 'pendiente'}
+                        seleccionado={seleccionados.has(r.SKU)}
+                        onSeleccionar={() => alternarSeleccion(r.SKU)}
+                        onAprobar={() => decidir([r.SKU], 'aprobado')}
+                        onRechazar={() => decidir([r.SKU], 'rechazado')}
+                        onRevertir={() => decidir([r.SKU], 'pendiente')}
+                      />
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
+        </div>
+      </section>
+
+      <section className="panel">
+        <header>
           <h2>
             SKU · estado y recomendación de slotting <EtiquetaModelo modo={resultado.modo_objetivo} />
           </h2>
@@ -316,6 +493,73 @@ export function SkuSlottingView() {
         </div>
       </section>
     </div>
+  );
+}
+
+const ETIQUETA_DECISION: Record<EstadoDecision, string> = {
+  pendiente: 'Pendiente',
+  aprobado: 'Aprobado',
+  rechazado: 'Rechazado',
+};
+
+function FilaCandidato({
+  r,
+  estado,
+  seleccionado,
+  onSeleccionar,
+  onAprobar,
+  onRechazar,
+  onRevertir,
+}: {
+  r: RecomendacionSKU;
+  estado: EstadoDecision;
+  seleccionado: boolean;
+  onSeleccionar: () => void;
+  onAprobar: () => void;
+  onRechazar: () => void;
+  onRevertir: () => void;
+}) {
+  return (
+    <tr>
+      <td>
+        <input type="checkbox" checked={seleccionado} onChange={onSeleccionar} aria-label={`Seleccionar ${r.SKU}`} />
+      </td>
+      <td className="mono">{r.SKU}</td>
+      <td>
+        <span
+          className="badge"
+          style={{ background: colorPerfilML(r.PERFIL_ML), color: '#fff' }}
+        >
+          {r.PERFIL_ML}
+        </span>
+      </td>
+      <td className="mono">{r.ZONA_ACTUAL}</td>
+      <td className="mono">{r.ZONA_RECOMENDADA}</td>
+      <td className="num">{r.SCORE_PRIORIDAD.toFixed(1)}</td>
+      <td className="num">{r.AHORRO_ESTIMADO_MIN.toFixed(0)} min</td>
+      <td style={{ fontSize: 12, color: 'var(--grafito2)', maxWidth: 320 }}>{r.JUSTIFICACION}</td>
+      <td>
+        <Badge tono={estado === 'aprobado' ? 'activo' : estado === 'rechazado' ? 'mover' : 'inactivo'}>
+          {ETIQUETA_DECISION[estado]}
+        </Badge>
+      </td>
+      <td>
+        {estado === 'pendiente' ? (
+          <div style={{ display: 'flex', gap: 6 }}>
+            <button className="boton boton-secundario" style={{ padding: '4px 10px', fontSize: 12 }} onClick={onAprobar} aria-label={`Aprobar ${r.SKU}`}>
+              ✓
+            </button>
+            <button className="boton boton-secundario" style={{ padding: '4px 10px', fontSize: 12 }} onClick={onRechazar} aria-label={`Rechazar ${r.SKU}`}>
+              ✗
+            </button>
+          </div>
+        ) : (
+          <button className="skus-expandir" onClick={onRevertir}>
+            ↺ deshacer
+          </button>
+        )}
+      </td>
+    </tr>
   );
 }
 

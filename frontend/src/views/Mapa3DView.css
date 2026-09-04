@@ -1,0 +1,183 @@
+.mapa3d-pagina {
+  position: fixed;
+  inset: 0;
+  background: #12141a;
+  font-family: -apple-system, 'Segoe UI', Arial, sans-serif;
+  overflow: hidden;
+}
+#mapa3d-canvas {
+  position: absolute;
+  inset: 0;
+}
+.mapa3d-vacio {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  background: #12141a;
+  color: #e8e8e8;
+  padding: 40px;
+  font-family: -apple-system, 'Segoe UI', Arial, sans-serif;
+}
+.mapa3d-vacio p {
+  max-width: 420px;
+  line-height: 1.6;
+  text-align: center;
+}
+.mapa3d-error {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background: rgba(240, 149, 149, 0.15);
+  color: #f09595;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 12.5px;
+  max-width: 320px;
+  z-index: 4;
+}
+
+.mapa3d-panel {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  width: 320px;
+  background: rgba(20, 22, 28, 0.92);
+  color: #e8e8e8;
+  padding: 16px;
+  border-radius: 10px;
+  font-size: 13px;
+  line-height: 1.5;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  z-index: 3;
+}
+.mapa3d-panel h1 {
+  font-size: 15px;
+  margin: 0 0 4px;
+  font-weight: 600;
+}
+.mapa3d-sub {
+  color: #9a9a9a;
+  font-size: 12px;
+  margin-bottom: 12px;
+}
+.mapa3d-buscador {
+  display: flex;
+  gap: 6px;
+  margin: 4px 0 8px;
+}
+.mapa3d-buscador input {
+  flex: 1;
+  min-width: 0;
+  font-family: inherit;
+  font-size: 12.5px;
+  padding: 7px 10px;
+  border-radius: 7px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(40, 44, 54, 0.9);
+  color: #e8e8e8;
+}
+.mapa3d-buscador input::placeholder {
+  color: #7a7a7a;
+}
+.mapa3d-buscador button {
+  font-family: inherit;
+  font-size: 12.5px;
+  padding: 7px 12px;
+  border-radius: 7px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: #4a7ec4;
+  color: #fff;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.mapa3d-buscador-estado {
+  font-size: 12px;
+  color: #7fb3e8;
+  margin: 0 0 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.mapa3d-buscador-limpiar {
+  border: 0;
+  background: transparent;
+  color: #8a8a8a;
+  cursor: pointer;
+  font-size: 12px;
+  padding: 0 4px;
+}
+.mapa3d-buscador-limpiar:hover {
+  color: #e8e8e8;
+}
+.mapa3d-buscador-error {
+  font-size: 12px;
+  color: #f09595;
+  margin: 0 0 8px;
+  line-height: 1.4;
+}
+
+.mapa3d-toggle {
+  display: flex;
+  gap: 0;
+  margin: 14px 0 12px;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+.mapa3d-toggle button {
+  flex: 1;
+  padding: 9px 0;
+  border: 0;
+  background: rgba(40, 44, 54, 0.9);
+  color: #b8b8b8;
+  font-size: 13px;
+  cursor: pointer;
+  font-family: inherit;
+}
+.mapa3d-toggle button.on {
+  background: #4a7ec4;
+  color: #fff;
+  font-weight: 600;
+}
+.mapa3d-toggle-color {
+  margin-top: 4px;
+}
+.mapa3d-leyenda-fila {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 4px 0;
+}
+.mapa3d-swatch {
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+.mapa3d-nota {
+  color: #8a8a8a;
+  font-size: 11px;
+  line-height: 1.5;
+  margin: 8px 0 0;
+}
+.mapa3d-nota-generado {
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  padding-top: 10px;
+  margin-top: 12px;
+}
+.mapa3d-kpis {
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  margin-top: 12px;
+  padding-top: 10px;
+  font-size: 12px;
+}
+.mapa3d-kpi-fila {
+  display: flex;
+  justify-content: space-between;
+  margin: 3px 0;
+}
+.mapa3d-kpi-val {
+  color: #fff;
+  font-weight: 600;
+}

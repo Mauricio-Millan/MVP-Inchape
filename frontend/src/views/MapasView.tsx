@@ -7,6 +7,7 @@ import { EstadoPipeline } from '../components/ui/EstadoPipeline';
 import { EtiquetaModelo } from '../components/ui/EtiquetaModelo';
 import { usePipeline } from '../context/PipelineContext';
 import { useZonas, type Zona } from '../api/zonas';
+import { entregarDatos3D } from '../lib/mapa3dHandoff';
 import './MapasView.css';
 
 export function MapasView() {
@@ -37,6 +38,16 @@ export function MapasView() {
     }
   }
 
+  function abrirMapa3D() {
+    entregarDatos3D({
+      recomendaciones: resultado.recomendaciones,
+      modoObjetivo: resultado.modo_objetivo,
+      kpis: resultado.kpis,
+      generadoEn: Date.now(),
+    });
+    window.open('/#mapa3d', '_blank');
+  }
+
   const ocupacionActual = agruparPorZonaExcel(resultado.recomendaciones, 'ZONA_ACTUAL');
   const ocupacionPropuesta = agruparPorZonaExcel(resultado.recomendaciones, 'ZONA_RECOMENDADA');
   const sinGeometria = [
@@ -57,7 +68,12 @@ export function MapasView() {
         </p>
       )}
 
-      <p className="mapas-ayuda">Haz click en una zona de cualquiera de los dos mapas para ver qué SKU hay ahí.</p>
+      <div className="mapas-ayuda-fila">
+        <p className="mapas-ayuda">Haz click en una zona de cualquiera de los dos mapas para ver qué SKU hay ahí.</p>
+        <button className="boton boton-secundario" onClick={abrirMapa3D}>
+          Ver comparación 3D ↗
+        </button>
+      </div>
 
       <div className="mapas-afinidad">
         <label className="mapas-afinidad-check">
