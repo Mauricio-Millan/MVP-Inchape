@@ -85,16 +85,16 @@ def procesar_csvs(archivos: dict[str, bytes], mapeo: dict) -> ReporteIngesta:
             continue
         datasets_crudos[tabla] = pd.read_csv(io.BytesIO(contenido))
 
-    faltantes = [f"{t} (esperado: '{hoja_esperada(t, mapeo)}.csv')" for t in TABLAS_LOTE if t not in datasets_crudos]
+    faltantes = [
+        f"{t} (esperado: '{hoja_esperada(t, mapeo)}.csv')" for t in TABLAS_LOTE if t not in datasets_crudos
+    ]
     if faltantes or no_reconocidos:
         detalle = []
         if faltantes:
             detalle.append(f"faltan archivos para: {faltantes}")
         if no_reconocidos:
             detalle.append(f"no se reconocieron estos nombres: {no_reconocidos}")
-        raise IngestaFatalError(
-            "Los CSV enviados no cubren las 6 tablas requeridas -- " + "; ".join(detalle)
-        )
+        raise IngestaFatalError("Los CSV enviados no cubren las 6 tablas requeridas -- " + "; ".join(detalle))
 
     return _procesar_datasets_crudos(datasets_crudos, mapeo)
 

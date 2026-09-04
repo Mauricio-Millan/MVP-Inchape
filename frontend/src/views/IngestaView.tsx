@@ -4,6 +4,8 @@ import { ApiError } from '../api/config';
 import { fetchMapeo, subirIngesta, type Mapeo, type RespuestaIngesta } from '../api/ingesta';
 import { PipelineChecklist } from '../components/ui/PipelineChecklist';
 import { usePipeline } from '../context/PipelineContext';
+import { MODELOS_SLOTTING } from '../lib/modelosSlotting';
+import '../components/plano/PlanoSVG.css'; // solo por .ctrl (segmented control)
 import './IngestaView.css';
 
 interface PreviaHoja {
@@ -80,7 +82,13 @@ export function IngestaView() {
   const [errorPrevia, setErrorPrevia] = useState<string | null>(null);
   const [arrastrando, setArrastrando] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
-  const { ejecutar } = usePipeline();
+  const {
+    ejecutar,
+    cargando: pipelineCargando,
+    modeloSlotting,
+    cambiarModeloSlotting,
+    resultado: resultadoPipeline,
+  } = usePipeline();
 
   const modo = detectarModo(archivos);
 
@@ -288,6 +296,29 @@ export function IngestaView() {
                 ))}
               </ul>
             )}
+          </div>
+        )}
+
+        {resultadoPipeline && (
+          <div className="ingesta-modelo">
+            <h3>Elige tu modelo de slotting</h3>
+            <div className="ctrl" role="group" aria-label="Modelo de slotting">
+              {MODELOS_SLOTTING.map((m) => (
+                <button
+                  key={m.id}
+                  aria-pressed={modeloSlotting === m.id}
+                  disabled={pipelineCargando}
+                  onClick={() => cambiarModeloSlotting(m.id)}
+                >
+                  {m.etiqueta}
+                </button>
+              ))}
+            </div>
+            <p className="ingesta-modelo-nota">
+              {MODELOS_SLOTTING.find((m) => m.id === modeloSlotting)?.descripcion}
+              {' '}Los 3 modelos usan el mismo optimizador y las mismas restricciones duras (capacidad, tope de
+              movimientos, reglas) -- solo cambia qué SKU gana las zonas cercanas.
+            </p>
           </div>
         )}
       </div>

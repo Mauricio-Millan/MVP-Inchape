@@ -37,9 +37,23 @@ function porCercania(espacios: EspacioReal[]): EspacioReal[] {
 /** SKU de la zona, de más a menos movimiento real -- `N_LINEAS` (líneas
  * de pedido reales), no `ROTACION_6M`: la rotación declarada del Excel
  * no correlaciona con los hits reales (Pearson 0.028, ver CLAUDE_1.md
- * #2), así que no sirve como proxy de velocidad. */
+ * #2), así que no sirve como proxy de velocidad.
+ *
+ * Cuando hay `COMUNIDAD_AFINIDAD` (afinidad real o forzada, ver
+ * `PipelineContext.forzarAfinidad`), se ordena PRIMERO por comunidad --
+ * como `espaciosCercanos` ya viene ordenado por distancia real a "Mesas
+ * de trabajo", agrupar por comunidad antes que por velocidad hace que
+ * los SKU de una misma comunidad caigan en índices contiguos, es decir,
+ * en espacios ilustrativos cercanos entre sí. Sin comunidad (el caso de
+ * siempre) todos comparten la misma clave primaria y el orden queda
+ * idéntico al de antes (puro `N_LINEAS` descendente). */
 function porVelocidadReal(skus: RecomendacionSKU[]): RecomendacionSKU[] {
-  return [...skus].sort((a, b) => b.N_LINEAS - a.N_LINEAS);
+  return [...skus].sort((a, b) => {
+    const comunidadA = a.COMUNIDAD_AFINIDAD ?? Number.POSITIVE_INFINITY;
+    const comunidadB = b.COMUNIDAD_AFINIDAD ?? Number.POSITIVE_INFINITY;
+    if (comunidadA !== comunidadB) return comunidadA - comunidadB;
+    return b.N_LINEAS - a.N_LINEAS;
+  });
 }
 
 /** Asigna a cada espacio real de una zona su estado de movimiento, desde
@@ -121,8 +135,20 @@ export const ETIQUETA_ESTADO: Record<EstadoMovimiento, string> = {
 export function descripcionAsiento(asiento: AsientoMovimiento): string {
   if (!asiento.sku) return ETIQUETA_ESTADO[asiento.estado];
   const base = `${asiento.sku.SKU} · ${asiento.sku.FAMILIA}`;
+  const sufijoAfinidad =
+    asiento.sku.COMUNIDAD_AFINIDAD != null ? ` · suele pedirse junto con el grupo #${asiento.sku.COMUNIDAD_AFINIDAD}` : '';
   if (asiento.estado === 'se_va' || asiento.estado === 'llega') {
-    return `${base} — ${asiento.sku.JUSTIFICACION}`;
+    return `${base} — ${asiento.sku.JUSTIFICACION}${sufijoAfinidad}`;
   }
-  return `${base} · rotación 6m: ${asiento.sku.ROTACION_6M}`;
+  return `${base} · rotación 6m: ${asiento.sku.ROTACION_6M}${sufijoAfinidad}`;
+}
+
+/** Color categórico determinista por comunidad -- no hace falta una
+ * paleta fija de N colores (el número de comunidades varía por lote),
+ * un hue espaciado por número áureo aproximado (137.5°) da colores bien
+ * distinguibles entre comunidades consecutivas sin repetir para pocas
+ * decenas de grupos. */
+export function colorComunidad(comunidad: number): string {
+  const hue = (comunidad * 137.5) % 360;
+  return `hsl(${hue}, 65%, 42%)`;
 }

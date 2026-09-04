@@ -1,5 +1,5 @@
 import { apiFetch } from './config';
-import type { DecisionRegla, RecomendacionSKU } from './pipeline';
+import type { DecisionRegla, ModoObjetivo, RecomendacionSKU } from './pipeline';
 
 export interface DesgloseScore {
   ahorro: number;
@@ -26,6 +26,14 @@ export interface RespuestaRecomendacionSKU {
   explicacion_cluster: ExplicacionCluster;
 }
 
-export function fetchDetalleSku(sku: string): Promise<RespuestaRecomendacionSKU> {
-  return apiFetch<RespuestaRecomendacionSKU>(`/recomendaciones/${encodeURIComponent(sku)}`);
+/** `modoObjetivo`: debe ser el modelo activo de la corrida vigente -- si
+ * no, el drawer de detalle mostraría siempre Modelo 1 (velocidad)
+ * mientras la tabla muestra Modelo 2/3 (ver backend `routers/recomendaciones.py`). */
+export function fetchDetalleSku(
+  sku: string,
+  modoObjetivo: ModoObjetivo = 'velocidad',
+): Promise<RespuestaRecomendacionSKU> {
+  return apiFetch<RespuestaRecomendacionSKU>(
+    `/recomendaciones/${encodeURIComponent(sku)}?modo_objetivo=${modoObjetivo}`,
+  );
 }

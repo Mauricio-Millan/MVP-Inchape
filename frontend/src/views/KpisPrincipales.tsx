@@ -16,8 +16,14 @@ import '../components/plano/PlanoSVG.css'; // .ctrl -- mismo toggle que el resto
  * El optimizador puede recomendar zonas distintas en cada modo, no es
  * solo un recálculo del mismo resultado (ver `LAYOUT-SVG-ESCANEADO.md` §9). */
 export function KpisPrincipales() {
-  const { resultado, cargando, modoDistancia, cambiarModoDistancia } = usePipeline();
+  const { resultado, cargando, modoDistancia, cambiarModoDistancia, modeloSlotting } = usePipeline();
   if (!resultado) return <EstadoPipeline mensaje="Ejecuta el pipeline para ver los KPIs del caso." />;
+
+  // Modelo 2 (valor) y Modelo 3 (servicio) siempre usan el tiempo
+  // declarado en el Excel -- el modo SVG queda fuera de alcance para
+  // esos modelos (ver MVP-Inchape/1.md nota inicial), así que el switch
+  // se deshabilita en vez de dejar 4 combinaciones sin diseñar.
+  const svgDisponible = modeloSlotting === 'velocidad';
 
   const { kpis } = resultado;
   // El modo "svg" puede dar una propuesta peor que hoy (el optimizador
@@ -36,14 +42,21 @@ export function KpisPrincipales() {
         >
           Layout CD (Excel)
         </button>
-        <button aria-pressed={modoDistancia === 'svg'} disabled={cargando} onClick={() => cambiarModoDistancia('svg')}>
+        <button
+          aria-pressed={modoDistancia === 'svg'}
+          disabled={cargando || !svgDisponible}
+          title={svgDisponible ? undefined : 'Solo disponible con Modelo 1 · Velocidad'}
+          onClick={() => cambiarModoDistancia('svg')}
+        >
           Distancia real (SVG)
         </button>
       </div>
       <p className="kpis-modo-distancia-nota">
-        {modoDistancia === 'layout_cd'
-          ? 'Propuesta calculada con el tiempo de acceso declarado por zona en tu Excel (LAYOUT_CD).'
-          : 'Propuesta calculada con un tiempo estimado por cercanía real a Mesas de trabajo, medida sobre el layout escaneado y calibrado contra el tiempo declarado (no es una medición de campo). El "hoy" de abajo no cambia — sigue siendo el declarado en el Excel.'}
+        {!svgDisponible
+          ? 'Modelo 2 (valor) y Modelo 3 (servicio) siempre usan el tiempo declarado en el Excel -- el modo de distancia real (SVG) solo aplica a Modelo 1 (velocidad).'
+          : modoDistancia === 'layout_cd'
+            ? 'Propuesta calculada con el tiempo de acceso declarado por zona en tu Excel (LAYOUT_CD).'
+            : 'Propuesta calculada con un tiempo estimado por cercanía real a Mesas de trabajo, medida sobre el layout escaneado y calibrado contra el tiempo declarado (no es una medición de campo). El "hoy" de abajo no cambia — sigue siendo el declarado en el Excel.'}
       </p>
 
       <div className="grid-kpi grid-kpi-principal">

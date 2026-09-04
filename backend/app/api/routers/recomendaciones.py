@@ -3,18 +3,19 @@ from fastapi import APIRouter, HTTPException
 from app.core.config import PESOS_SCORE
 from app.core.db import leer_tablas_lote
 from app.dominio.ml_perfil import explicar_sku
+from app.dominio.objetivo import VariablesModeloNoDisponiblesError
 from app.dominio.optimizador import OptimizadorInfactibleError
 from app.dominio.pipeline import SinLoteIngeridoError, ejecutar_pipeline
 from app.dominio.recomendaciones import FactibilidadError
 from app.dominio.reglas.repositorio import listar_reglas
-from app.schemas.pipeline import DecisionRegla, RecomendacionSKU
+from app.schemas.pipeline import DecisionRegla, ModoObjetivo, RecomendacionSKU
 from app.schemas.recomendaciones import DesgloseScore, ExplicacionCluster, RespuestaRecomendacionSKU
 
 router = APIRouter(prefix="/recomendaciones", tags=["recomendaciones"])
 
 
 @router.get("/{sku}", response_model=RespuestaRecomendacionSKU)
-def detalle_sku(sku: str) -> RespuestaRecomendacionSKU:
+def detalle_sku(sku: str, modo_objetivo: ModoObjetivo = "velocidad") -> RespuestaRecomendacionSKU:
     """Panel de explicabilidad completo de un SKU: score desglosado por
     criterio, reglas que lo afectaron, y el cluster ML explicado
     (contribución por variable, distancia a centroides, silhouette
@@ -22,18 +23,23 @@ def detalle_sku(sku: str) -> RespuestaRecomendacionSKU:
     `propuesta-motor-reglas-y-explicabilidad.md` §5 para que la
     recomendación nunca sea una caja negra.
 
-    Recorre el pipeline completo con los parámetros por defecto -- no
-    hay estado cacheado entre requests, coherente con el resto del
-    backend (ver plan-desarrollo-mvp-react-fastapi.md).
+    Recorre el pipeline completo con los parámetros por defecto salvo
+    `modo_objetivo` -- el frontend debe pasar el modelo activo de esta
+    corrida, si no el drawer de detalle mostraría siempre Modelo 1
+    (velocidad) mientras la tabla muestra Modelo 2/3. No hay estado
+    cacheado entre requests, coherente con el resto del backend (ver
+    plan-desarrollo-mvp-react-fastapi.md).
     """
     datasets = leer_tablas_lote()
     reglas = listar_reglas()
     try:
-        resultado = ejecutar_pipeline(datasets, reglas=reglas)
+        resultado = ejecutar_pipeline(datasets, reglas=reglas, modo_objetivo=modo_objetivo)
     except SinLoteIngeridoError as e:
         raise HTTPException(422, detail=str(e)) from e
     except (OptimizadorInfactibleError, FactibilidadError) as e:
         raise HTTPException(409, detail=str(e)) from e
+    except VariablesModeloNoDisponiblesError as e:
+        raise HTTPException(422, detail=str(e)) from e
 
     fila_rec = resultado.recomendaciones.loc[resultado.recomendaciones["SKU"] == sku]
     if fila_rec.empty:

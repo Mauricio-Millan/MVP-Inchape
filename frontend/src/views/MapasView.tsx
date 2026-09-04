@@ -4,12 +4,13 @@ import { PlanoEscaneado } from '../components/mapas/PlanoEscaneado';
 import { agruparPorZonaExcel, zonasSinGeometria } from '../components/mapas/ocupacion';
 import { PlanoSVG } from '../components/plano/PlanoSVG';
 import { EstadoPipeline } from '../components/ui/EstadoPipeline';
+import { EtiquetaModelo } from '../components/ui/EtiquetaModelo';
 import { usePipeline } from '../context/PipelineContext';
 import { useZonas, type Zona } from '../api/zonas';
 import './MapasView.css';
 
 export function MapasView() {
-  const { resultado } = usePipeline();
+  const { resultado, cargando, forzarAfinidad, cambiarForzarAfinidad } = usePipeline();
   const { zonas, error: errorZonas } = useZonas();
   const [zonaDetalle, setZonaDetalle] = useState<Zona | null>(null);
   // Cuál de los dos mapas (Hoy/Propuesta) abrió el detalle -- decide si
@@ -58,6 +59,23 @@ export function MapasView() {
 
       <p className="mapas-ayuda">Haz click en una zona de cualquiera de los dos mapas para ver qué SKU hay ahí.</p>
 
+      <div className="mapas-afinidad">
+        <label className="mapas-afinidad-check">
+          <input
+            type="checkbox"
+            checked={forzarAfinidad}
+            disabled={cargando}
+            onChange={(e) => cambiarForzarAfinidad(e.target.checked)}
+          />
+          Forzar afinidad (demo)
+        </label>
+        <p className="mapas-afinidad-nota">
+          {forzarAfinidad
+            ? resultado.afinidad_motivo
+            : 'Agrupa en la propuesta los SKU que suelen pedirse juntos (comunidades de Louvain), saltando el test de significancia -- el test real (GET /afinidad) hoy no confirma señal suficiente sobre este lote, así que esto es una demostración del mecanismo, no un hallazgo. Los SKU de la misma comunidad quedan resaltados con el mismo color de borde en el mapa de la propuesta.'}
+        </p>
+      </div>
+
       <div className="mapas-grid">
         <PlanoEscaneado
           titulo="Hoy"
@@ -66,7 +84,11 @@ export function MapasView() {
           onClickZona={(id) => abrirPorId(id, 'ZONA_ACTUAL')}
         />
         <PlanoEscaneado
-          titulo="Propuesta de slotting"
+          titulo={
+            <>
+              Propuesta de slotting <EtiquetaModelo modo={resultado.modo_objetivo} />
+            </>
+          }
           campo="ZONA_RECOMENDADA"
           recomendaciones={resultado.recomendaciones}
           onClickZona={(id) => abrirPorId(id, 'ZONA_RECOMENDADA')}

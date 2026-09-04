@@ -61,7 +61,9 @@ def calcular_layout_cd_svg(layout_cd: pd.DataFrame, distancia_svg_por_zona: dict
     pendiente, ordenada = np.polyfit(calibracion["DISTANCIA_SVG"], calibracion["TIEMPO_MINUTOS"], 1)
 
     tiempo_svg = pendiente * layout_cd["DISTANCIA_SVG"] + ordenada
-    layout_cd["TIEMPO_MINUTOS"] = tiempo_svg.where(layout_cd["DISTANCIA_SVG"].notna(), layout_cd["TIEMPO_MINUTOS"])
+    layout_cd["TIEMPO_MINUTOS"] = tiempo_svg.where(
+        layout_cd["DISTANCIA_SVG"].notna(), layout_cd["TIEMPO_MINUTOS"]
+    )
     # Nunca un tiempo negativo/cero por extrapolación de la recta en una
     # zona muy cercana -- el optimizador lo tomaría como "gratis".
     layout_cd["TIEMPO_MINUTOS"] = layout_cd["TIEMPO_MINUTOS"].clip(lower=0.01)

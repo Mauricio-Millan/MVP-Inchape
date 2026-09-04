@@ -2,8 +2,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { select } from 'd3-selection';
 import { zoom, zoomIdentity, type ZoomBehavior } from 'd3-zoom';
 import 'd3-transition';
-import type { RecomendacionSKU } from '../../api/pipeline';
+import type { ModoObjetivo, RecomendacionSKU } from '../../api/pipeline';
 import { colorCalor } from '../../lib/colorCalor';
+import { EtiquetaModelo } from '../ui/EtiquetaModelo';
 import { LAYOUT_ESCANEADO, ZONAS_ESCANEADAS } from './layoutEscaneado';
 import { asientosPorMovimiento, descripcionAsiento } from './movimientoReal';
 import './PlanoInteractivoD3.css';
@@ -44,6 +45,7 @@ export function PlanoInteractivoD3({
   capacidadZonas,
   campo,
   onCampoChange,
+  modoObjetivo,
 }: {
   recomendaciones: RecomendacionSKU[];
   /** `CAPACIDAD_M3_MAX` por `clave_excel` (LAYOUT_CD del Excel del lote
@@ -52,6 +54,10 @@ export function PlanoInteractivoD3({
   capacidadZonas: Record<string, number>;
   campo: 'ZONA_ACTUAL' | 'ZONA_RECOMENDADA';
   onCampoChange: (campo: 'ZONA_ACTUAL' | 'ZONA_RECOMENDADA') => void;
+  /** Qué modelo de slotting produjo `recomendaciones` -- viene de
+   * `RespuestaPipeline.modo_objetivo` (eco del backend), se muestra en
+   * el header como referencia de qué propuesta se está viendo. */
+  modoObjetivo: ModoObjetivo;
 }) {
   const [modo, setModo] = useState<Modo>('rotacion');
   const [hover, setHover] = useState<string | null>(null);
@@ -200,7 +206,9 @@ export function PlanoInteractivoD3({
   return (
     <section className="panel plano-d3">
       <header>
-        <h2>Dashboard v2 · Mapa interactivo</h2>
+        <h2>
+          Dashboard v2 · Mapa interactivo <EtiquetaModelo modo={modoObjetivo} />
+        </h2>
         <span className="note">{porZona.length} de 14 zonas trazadas · arrastra para mover, rueda para zoom</span>
       </header>
       <div className="panel-body">

@@ -65,6 +65,18 @@
   color: var(--grafito2);
   background: rgba(0, 0, 0, 0.05);
 }
+.badge-modelo {
+  color: var(--oro);
+  background: rgba(0, 0, 0, 0.06);
+}
+/* La etiqueta de modelo activo se usa dentro de un <h2> de panel en
+ * varias vistas (SKU · Slotting, Mapas, Dashboard v2) -- una sola regla
+ * acá en vez de repetir el ajuste de alineación en cada vista. */
+h2 .badge {
+  vertical-align: middle;
+  margin-left: 8px;
+  font-size: 11px;
+}
 
 .grid-kpi {
   display: grid;

@@ -5,7 +5,28 @@ import { usePipeline } from '../context/PipelineContext';
 import { ApiError } from '../api/config';
 import { fetchDetalleSku, type RespuestaRecomendacionSKU } from '../api/recomendaciones';
 import type { RecomendacionSKU } from '../api/pipeline';
+import { colorCalor } from '../lib/colorCalor';
+import { exportarPropuestaSlotting } from '../lib/exportarSlotting';
+import { EtiquetaModelo } from '../components/ui/EtiquetaModelo';
 import './SkuSlottingView.css';
+
+/** `SCORE_PRIORIDAD` (fórmula ponderada editable, ver `CRITERIOS`/pesos
+ * arriba) y `PERFIL_ML`/`PRIORIDAD_CLUSTER_RANK` (ranking de clusters
+ * de KMeans por impacto promedio, `ml_perfil.py`) son dos criterios de
+ * prioridad DISTINTOS que el backend ya calcula y devuelve juntos en
+ * cada `RecomendacionSKU` -- nunca hizo falta tocar el backend para
+ * mostrarlos ambos. No se fusionan en un solo número: mezclar un score
+ * ponderado interpretable con un rank de cluster no-supervisado
+ * perdería la interpretabilidad de ambos sin aportar nada que el score
+ * (ajustable con los sliders de arriba) no cubra ya. Se muestran uno al
+ * lado del otro para que se pueda comparar -- y sirven además para
+ * ver cuándo *no* coinciden (un SKU con score bajo pero en un cluster
+ * de "Impacto alto" es una señal de que vale la pena revisarlo aparte). */
+function colorPerfilML(perfil: string): string {
+  if (perfil.includes('alto')) return colorCalor(1);
+  if (perfil.includes('medio')) return colorCalor(0.5);
+  return colorCalor(0);
+}
 
 const CRITERIOS = [
   { clave: 'ahorro', etiqueta: 'Ahorro potencial' },
@@ -42,7 +63,16 @@ const FORMULA_SCORE =
 
 type Columna = keyof Pick<
   RecomendacionSKU,
-  'SKU' | 'FAMILIA' | 'ABC' | 'ZONA_ACTUAL' | 'TIEMPO_LAYOUT_ACTUAL' | 'ZONA_RECOMENDADA' | 'TIEMPO_NUEVO_MIN' | 'AHORRO_PORCENTAJE' | 'SCORE_PRIORIDAD'
+  | 'SKU'
+  | 'FAMILIA'
+  | 'ABC'
+  | 'ZONA_ACTUAL'
+  | 'TIEMPO_LAYOUT_ACTUAL'
+  | 'ZONA_RECOMENDADA'
+  | 'TIEMPO_NUEVO_MIN'
+  | 'AHORRO_PORCENTAJE'
+  | 'SCORE_PRIORIDAD'
+  | 'PRIORIDAD_CLUSTER_RANK'
 >;
 type FiltroMovimiento = 'TODOS' | 'MOVER' | 'MANTENER';
 
@@ -52,6 +82,10 @@ export function SkuSlottingView() {
   // 20% -- mismo default que PORCENTAJE_MAX_MOVIMIENTO en config.py del
   // backend; acá solo se refleja, nunca se hardcodea un valor distinto.
   const [porcentajeMaxMovimiento, setPorcentajeMaxMovimiento] = useState(20);
+  // Nunca por defecto -- paga ~15s del test de significancia y solo
+  // tiene efecto real si ese test confirma señal sobre el lote vigente
+  // (ver resultado.afinidad_aplicada/afinidad_motivo más abajo).
+  const [usarAfinidad, setUsarAfinidad] = useState(false);
   const [busqueda, setBusqueda] = useState('');
   const [filtroMovimiento, setFiltroMovimiento] = useState<FiltroMovimiento>('TODOS');
   const [orden, setOrden] = useState<{ columna: Columna; asc: boolean }>({ columna: 'SCORE_PRIORIDAD', asc: false });
@@ -78,6 +112,7 @@ export function SkuSlottingView() {
         facilidad_movimiento: pesos.facilidad_movimiento / sumaPesos,
       },
       porcentajeMaxMovimiento / 100,
+      usarAfinidad,
     );
   }
 
@@ -113,7 +148,7 @@ export function SkuSlottingView() {
       setCargandoDetalle(sku);
       setErrorDetalle(null);
       try {
-        const d = await fetchDetalleSku(sku);
+        const d = await fetchDetalleSku(sku, resultado?.modo_objetivo);
         setDetalles((m) => new Map(m).set(sku, d));
       } catch (e) {
         setErrorDetalle(e instanceof ApiError ? e.detail : 'No se pudo consultar el SKU.');
@@ -131,6 +166,15 @@ export function SkuSlottingView() {
           <span className="note">Suma normalizada a 100%</span>
         </header>
         <div className="panel-body">
+          {resultado && resultado.modo_objetivo !== 'velocidad' && (
+            <p className="peso-nota" style={{ marginBottom: 14 }}>
+              La columna <span className="mono">Score</span> de la tabla sigue midiendo <b>ahorro de minutos</b> (ver
+              fórmula abajo) aunque la propuesta activa se haya decidido por{' '}
+              {resultado.modo_objetivo === 'valor' ? 'valor económico (Modelo 2)' : 'nivel de servicio (Modelo 3)'} —
+              es un criterio de prioridad distinto al que realmente asignó la zona, no un error. Al expandir una fila
+              (▼) la justificación explica, en texto, el criterio real que usó el optimizador para esa recomendación.
+            </p>
+          )}
           {CRITERIOS.map((c) => (
             <label key={c.clave} className="peso-fila">
               <span className="peso-etiqueta">{c.etiqueta}</span>
@@ -171,6 +215,24 @@ export function SkuSlottingView() {
             )}
           </p>
 
+          <label className="peso-fila">
+            <span className="peso-etiqueta">Afinidad de pedidos</span>
+            <input
+              type="checkbox"
+              checked={usarAfinidad}
+              onChange={(e) => setUsarAfinidad(e.target.checked)}
+              style={{ justifySelf: 'start' }}
+            />
+            <span className="mono peso-valor">{usarAfinidad ? 'Sí' : 'No'}</span>
+          </label>
+          <p className="peso-nota">
+            Agrupa SKU que suelen pedirse juntos en el mismo pedido y premia concentrarlos en menos zonas --
+            corre un test de significancia por remuestreo (~15s extra) antes de decidir si hay señal real; si
+            no la hay, el resultado sale idéntico a no usarla. Nunca fuerza nada por opinión.
+            {' '}<b>{resultado.afinidad_aplicada ? 'Aplicada en la última corrida:' : 'No aplicada en la última corrida:'}</b>{' '}
+            {resultado.afinidad_motivo}
+          </p>
+
           <button className="boton" disabled={cargando || sumaPesos === 0} onClick={recalcular}>
             {cargando ? 'Recalculando…' : 'Recalcular con estos pesos'}
           </button>
@@ -187,8 +249,15 @@ export function SkuSlottingView() {
 
       <section className="panel">
         <header>
-          <h2>SKU · estado y recomendación de slotting</h2>
-          <span className="note">{filas.length} de {resultado.recomendaciones.length}</span>
+          <h2>
+            SKU · estado y recomendación de slotting <EtiquetaModelo modo={resultado.modo_objetivo} />
+          </h2>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <span className="note">{filas.length} de {resultado.recomendaciones.length}</span>
+            <button className="boton boton-secundario" onClick={() => exportarPropuestaSlotting(resultado)}>
+              Exportar propuesta slotting
+            </button>
+          </div>
         </header>
         <div className="panel-body">
           <div className="skus-filtros">
@@ -216,7 +285,7 @@ export function SkuSlottingView() {
                   <th rowSpan={2} className="skus-th" onClick={() => alternarOrden('FAMILIA')}>Familia{orden.columna === 'FAMILIA' ? (orden.asc ? ' ▲' : ' ▼') : ''}</th>
                   <th rowSpan={2} className="skus-th" onClick={() => alternarOrden('ABC')}>ABC{orden.columna === 'ABC' ? (orden.asc ? ' ▲' : ' ▼') : ''}</th>
                   <th colSpan={2} className="skus-grupo skus-grupo-actual">Hoy</th>
-                  <th colSpan={4} className="skus-grupo skus-grupo-recomendado">Propuesta</th>
+                  <th colSpan={5} className="skus-grupo skus-grupo-recomendado">Propuesta</th>
                   <th rowSpan={2}></th>
                 </tr>
                 <tr>
@@ -225,7 +294,8 @@ export function SkuSlottingView() {
                   <th className="skus-th skus-grupo-recomendado" onClick={() => alternarOrden('ZONA_RECOMENDADA')}>Zona{orden.columna === 'ZONA_RECOMENDADA' ? (orden.asc ? ' ▲' : ' ▼') : ''}</th>
                   <th className="skus-th skus-grupo-recomendado" style={{ textAlign: 'right' }} onClick={() => alternarOrden('TIEMPO_NUEVO_MIN')}>Tiempo (min){orden.columna === 'TIEMPO_NUEVO_MIN' ? (orden.asc ? ' ▲' : ' ▼') : ''}</th>
                   <th className="skus-th skus-grupo-recomendado" style={{ textAlign: 'right' }} onClick={() => alternarOrden('AHORRO_PORCENTAJE')}>Ahorro{orden.columna === 'AHORRO_PORCENTAJE' ? (orden.asc ? ' ▲' : ' ▼') : ''}</th>
-                  <th className="skus-th skus-grupo-recomendado" style={{ textAlign: 'right' }} onClick={() => alternarOrden('SCORE_PRIORIDAD')}>Score{orden.columna === 'SCORE_PRIORIDAD' ? (orden.asc ? ' ▲' : ' ▼') : ''}</th>
+                  <th className="skus-th skus-grupo-recomendado" style={{ textAlign: 'right' }} onClick={() => alternarOrden('SCORE_PRIORIDAD')} title="Score ponderado (ver sliders arriba)">Score{orden.columna === 'SCORE_PRIORIDAD' ? (orden.asc ? ' ▲' : ' ▼') : ''}</th>
+                  <th className="skus-th skus-grupo-recomendado" onClick={() => alternarOrden('PRIORIDAD_CLUSTER_RANK')} title="Ranking de impacto del cluster ML al que pertenece este SKU (ver ml_perfil.py)">Perfil ML{orden.columna === 'PRIORIDAD_CLUSTER_RANK' ? (orden.asc ? ' ▲' : ' ▼') : ''}</th>
                 </tr>
               </thead>
               <tbody>
@@ -276,6 +346,15 @@ function FilaSku({
         <td className="num skus-grupo-recomendado">{r.TIEMPO_NUEVO_MIN.toFixed(2)}</td>
         <td className="num skus-grupo-recomendado">{r.AHORRO_PORCENTAJE.toFixed(0)}%</td>
         <td className="num skus-grupo-recomendado">{r.SCORE_PRIORIDAD.toFixed(1)}</td>
+        <td className="skus-grupo-recomendado">
+          <span
+            className="badge"
+            style={{ background: colorPerfilML(r.PERFIL_ML), color: '#fff' }}
+            title={`Cluster ${r.CLUSTER_ML} · índice de impacto del cluster: ${r.INDICE_IMPACTO_CLUSTER.toFixed(2)}`}
+          >
+            {r.PERFIL_ML}
+          </span>
+        </td>
         <td>
           <Badge tono={r.MOVIMIENTO === 'MOVER' ? 'mover' : 'mantener'}>{r.MOVIMIENTO}</Badge>
           <button className="skus-expandir" onClick={onToggle} aria-expanded={expandido} aria-label="Ver explicación del score">
@@ -285,7 +364,7 @@ function FilaSku({
       </tr>
       {expandido && (
         <tr className="skus-fila-detalle">
-          <td colSpan={10}>
+          <td colSpan={11}>
             {cargando && <p>Consultando…</p>}
             {error && <p className="estado-error">{error}</p>}
             {detalle && <DetalleSku detalle={detalle} />}

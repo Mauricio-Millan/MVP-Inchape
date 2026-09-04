@@ -75,6 +75,29 @@ def _modularidad(pedidos: pd.DataFrame, seed: int) -> float:
     return community_louvain.modularity(particion, G, weight="weight")
 
 
+def comunidades_por_sku(pedidos: pd.DataFrame, seed: int = 42) -> dict[str, int]:
+    """La partición de Louvain sobre el grafo de co-ocurrencia SKU-SKU
+    -- qué comunidad (grupo de SKU que tienden a pedirse juntos) le
+    toca a cada SKU. Es la misma partición que `_modularidad()` ya
+    calcula puertas adentro y descarta (solo se queda con el número);
+    acá se expone tal cual para que el optimizador la use como premio a
+    la concentración, nunca como restricción dura (ver
+    `optimizador.py::comunidad_por_sku`).
+
+    Nunca se llama a ciegas: quien la use primero debe confirmar
+    `calcular_significancia_afinidad(pedidos).usar_afinidad` -- esta
+    función no repite ese test, solo devuelve la partición cruda.
+
+    SKU sin ningún pedido co-ocurrente con otro no aparecen en el
+    resultado (quedan sueltos, sin comunidad) -- `{}` si no hay
+    co-ocurrencia en absoluto.
+    """
+    G = _grafo_desde_pares(construir_pares_coocurrencia(pedidos))
+    if G.number_of_edges() == 0:
+        return {}
+    return community_louvain.best_partition(G, weight="weight", random_state=seed)
+
+
 @dataclass
 class TestSignificancia:
     modularidad_observada: float

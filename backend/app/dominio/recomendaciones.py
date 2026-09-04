@@ -24,7 +24,14 @@ def construir_recomendaciones(
     base_con_score: pd.DataFrame,
     zona_asignada: dict[str, str],
     layout_cd: pd.DataFrame,
+    modo_objetivo: str = "velocidad",
+    pesos: dict[str, float] | None = None,
 ) -> pd.DataFrame:
+    """`modo_objetivo`/`pesos` solo cambian la `JUSTIFICACION` (en qué
+    términos se explica el movimiento -- minutos, valor o criticidad,
+    ver `_generar_justificacion`), el orden final de la tabla, y qué
+    columnas de insumo del modelo se exponen. La decisión de zona ya
+    vino hecha en `zona_asignada` -- este archivo nunca decide nada."""
     tiempos_zona = layout_cd.set_index("ZONA")["TIEMPO_MINUTOS"].to_dict()
 
     r = base_con_score.copy()
@@ -37,7 +44,15 @@ def construir_recomendaciones(
         r["COSTO_ACTUAL_MIN"] > 0, 100 * r["AHORRO_ESTIMADO_MIN"] / r["COSTO_ACTUAL_MIN"], 0
     )
     r["MOVIMIENTO"] = np.where(r["ZONA_ACTUAL"] != r["ZONA_RECOMENDADA"], "MOVER", "MANTENER")
-    r["JUSTIFICACION"] = r.apply(_generar_justificacion, axis=1)
+
+    if pesos is not None:
+        r["PESO_MODELO"] = r["SKU"].map(pesos)
+    if modo_objetivo == "valor" and "VALOR_INVENTARIO_M2" in r.columns:
+        # Percentil solo para redactar la justificación -- no se expone
+        # como columna propia (ver 2.md §6), por eso no entra a `columnas`.
+        r["_PERCENTIL_VALOR"] = r["VALOR_INVENTARIO_M2"].rank(pct=True) * 100
+
+    r["JUSTIFICACION"] = r.apply(lambda fila: _generar_justificacion(fila, modo_objetivo), axis=1)
 
     columnas = [
         "RANKING_SCORE",
@@ -65,11 +80,39 @@ def construir_recomendaciones(
     ]
     columnas_ml = ["CLUSTER_ML", "PERFIL_ML", "PRIORIDAD_CLUSTER_RANK", "INDICE_IMPACTO_CLUSTER"]
     columnas += [c for c in columnas_ml if c in r.columns]  # solo si ml_perfil.py ya corrió antes
+    # Afinidad/PESO_MODELO/insumos del modelo activo -- cada uno presente
+    # solo si esta corrida efectivamente lo calculó (mismo criterio que
+    # columnas_ml de arriba: nunca se inventa la columna si no hay dato).
+    columnas_opcionales = [
+        "COMUNIDAD_AFINIDAD",
+        "PESO_MODELO",
+        "VALOR_INVENTARIO_M2",
+        "MARGEN_PORCENTAJE_M2",
+        "RIESGO_OBSOLESCENCIA_M2",
+        "CRITICIDAD_M3",
+        "VARIABILIDAD_DEMANDA_M3",
+    ]
+    columnas += [c for c in columnas_opcionales if c in r.columns]
 
-    return r[columnas].sort_values("AHORRO_ESTIMADO_MIN", ascending=False).reset_index(drop=True)
+    # En Modelo 2/3 el criterio que decidió la zona fue el peso del
+    # modelo, no el ahorro de minutos -- ordenar por ahorro haría que la
+    # tabla y el export *parezcan* Modelo 1 aunque los datos sean de otro
+    # modelo (la primera fila sería la que más minutos ahorró, no la más
+    # valiosa/crítica).
+    usa_peso_modelo = modo_objetivo != "velocidad" and "PESO_MODELO" in r.columns
+    orden_por = "PESO_MODELO" if usa_peso_modelo else "AHORRO_ESTIMADO_MIN"
+    return r[columnas].sort_values(orden_por, ascending=False).reset_index(drop=True)
 
 
-def _generar_justificacion(fila: pd.Series) -> str:
+def _generar_justificacion(fila: pd.Series, modo_objetivo: str) -> str:
+    if modo_objetivo == "valor":
+        return _justificacion_valor(fila)
+    if modo_objetivo == "servicio":
+        return _justificacion_servicio(fila)
+    return _justificacion_velocidad(fila)
+
+
+def _justificacion_velocidad(fila: pd.Series) -> str:
     if fila["MOVIMIENTO"] == "MOVER":
         return (
             f"Mover de {fila['ZONA_ACTUAL']} a {fila['ZONA_RECOMENDADA']}. "
@@ -82,6 +125,32 @@ def _generar_justificacion(fila: pd.Series) -> str:
         f"Mantener en {fila['ZONA_ACTUAL']}. Dentro de las restricciones actuales, "
         "el optimizador no seleccionó un cambio de zona."
     )
+
+
+def _justificacion_valor(fila: pd.Series) -> str:
+    detalle = (
+        f"Valor movido en 6 meses: S/ {fila['VALOR_INVENTARIO_M2']:,.0f} "
+        f"(percentil {fila['_PERCENTIL_VALOR']:.0f} del catálogo), "
+        f"margen {fila['MARGEN_PORCENTAJE_M2'] * 100:.0f}%, "
+        f"riesgo de obsolescencia {fila['RIESGO_OBSOLESCENCIA_M2']}."
+    )
+    if fila["MOVIMIENTO"] == "MOVER":
+        return f"Mover de {fila['ZONA_ACTUAL']} a {fila['ZONA_RECOMENDADA']} por valor económico. {detalle}"
+    return f"Mantener en {fila['ZONA_ACTUAL']}. {detalle}"
+
+
+def _justificacion_servicio(fila: pd.Series) -> str:
+    detalle = (
+        f"Criticidad {fila['CRITICIDAD_M3']}, variabilidad de demanda "
+        f"{fila['VARIABILIDAD_DEMANDA_M3']:.2f} (coeficiente de variación). "
+        f"Frecuencia de picking real: {int(fila['N_LINEAS'])} líneas."
+    )
+    if fila["MOVIMIENTO"] == "MOVER":
+        return (
+            f"Mover de {fila['ZONA_ACTUAL']} a {fila['ZONA_RECOMENDADA']} por nivel de servicio "
+            f"(no necesariamente por ser de los más pedidos). {detalle}"
+        )
+    return f"Mantener en {fila['ZONA_ACTUAL']}. {detalle}"
 
 
 def validar_factibilidad(

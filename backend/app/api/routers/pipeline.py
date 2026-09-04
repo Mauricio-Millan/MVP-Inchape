@@ -6,6 +6,7 @@ from sqlalchemy import delete, insert
 from app.core.db import engine, leer_tablas_lote, resultados_ultimo_lote
 from app.core.flags import evaluar_banderas
 from app.dominio.distancia_svg import DistanciaSvgNoDisponibleError
+from app.dominio.objetivo import VariablesModeloNoDisponiblesError
 from app.dominio.optimizador import OptimizadorInfactibleError
 from app.dominio.pipeline import SinLoteIngeridoError, ejecutar_pipeline
 from app.dominio.recomendaciones import FactibilidadError
@@ -31,21 +32,29 @@ def ejecutar(solicitud: SolicitudPipeline | None = None) -> RespuestaPipeline:
             solicitud.porcentaje_max_movimiento,
             reglas,
             solicitud.modo_distancia,
+            usar_afinidad=solicitud.usar_afinidad,
+            peso_afinidad=solicitud.peso_afinidad,
+            forzar_afinidad=solicitud.forzar_afinidad,
+            modo_objetivo=solicitud.modo_objetivo,
         )
     except SinLoteIngeridoError as e:
         raise HTTPException(422, detail=str(e)) from e
     except (OptimizadorInfactibleError, FactibilidadError) as e:
         raise HTTPException(409, detail=str(e)) from e
-    except DistanciaSvgNoDisponibleError as e:
+    except (DistanciaSvgNoDisponibleError, VariablesModeloNoDisponiblesError) as e:
         raise HTTPException(422, detail=str(e)) from e
 
     _persistir_resultado(resultado.recomendaciones)
 
     filas = resultado.recomendaciones.rename(columns={"AHORRO_%": "AHORRO_PORCENTAJE"}).to_dict("records")
     capacidad_zonas = (
-        datasets["layout_cd"].dropna(subset=["CAPACIDAD_M3_MAX"]).set_index("ZONA")["CAPACIDAD_M3_MAX"].to_dict()
+        datasets["layout_cd"]
+        .dropna(subset=["CAPACIDAD_M3_MAX"])
+        .set_index("ZONA")["CAPACIDAD_M3_MAX"]
+        .to_dict()
     )
     return RespuestaPipeline(
+        modo_objetivo=resultado.modo_objetivo,
         recomendaciones=filas,
         kpis=Kpis(**resultado.kpis),
         banderas_activas=evaluar_banderas(),
@@ -58,6 +67,8 @@ def ejecutar(solicitud: SolicitudPipeline | None = None) -> RespuestaPipeline:
             perfil_clusters=resultado.ml.perfil_clusters.to_dict("records"),
         ),
         capacidad_zonas=capacidad_zonas,
+        afinidad_aplicada=resultado.afinidad_aplicada,
+        afinidad_motivo=resultado.afinidad_motivo,
     )
 
 

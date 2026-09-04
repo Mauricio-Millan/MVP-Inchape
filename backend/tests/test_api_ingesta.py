@@ -32,7 +32,10 @@ def test_post_ingesta_csv_end_to_end(csvs_practica_por_tabla):
     with TestClient(app) as client:
         respuesta = client.post(
             "/ingesta",
-            files=[("archivos", (nombre, contenido, "text/csv")) for nombre, contenido in csvs_practica_por_tabla.items()],
+            files=[
+                ("archivos", (nombre, contenido, "text/csv"))
+                for nombre, contenido in csvs_practica_por_tabla.items()
+            ],
         )
 
     assert respuesta.status_code == 200, respuesta.text

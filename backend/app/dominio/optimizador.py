@@ -2,8 +2,14 @@
 optimizador de asignación factible.
 
 Puerto directo de `MVP_Reslotting_Inchcape.ipynb` (celdas 80-96). Variable
-binaria x(sku, zona) = 1 si el SKU se asigna a esa zona. Minimiza tiempo
-total de picking + penalización de movimiento, sujeto a:
+binaria x(sku, zona) = 1 si el SKU se asigna a esa zona. Minimiza
+Σ peso(SKU) × TIEMPO_MINUTOS(zona) + penalización de movimiento +
+(opcional) penalización de afinidad dispersa, sujeto a:
+
+  `pesos` decide QUÉ modelo de slotting es esta corrida (velocidad, valor
+  o servicio, ver `dominio/objetivo.py` y `MVP-Inchape/1.md`/`2.md`/
+  `3.md`) -- por defecto (`pesos=None`) es `N_LINEAS`, igual que siempre.
+  Las restricciones de abajo son IDÉNTICAS sin importar qué peso se use.
 
   - una zona por SKU,
   - capacidad de cada zona (ocupación base no modelada + volumen asignado),
@@ -13,10 +19,18 @@ total de picking + penalización de movimiento, sujeto a:
     `zonas_excluidas_por_sku`, `pares_familias_incompatibles`) --
     ninguna regla de seguridad es negociable por un buen score, así que
     se aplican como variables fijadas, no como término del objetivo.
+
+La afinidad (`comunidad_por_sku`/`peso_afinidad`, Bloque E,
+`dominio/afinidad.py`) es la única pieza de este archivo que SÍ entra
+como término del objetivo, nunca como restricción dura -- a diferencia
+de las reglas de negocio, es una preferencia estadística, no una regla
+de seguridad, así que solo puede hacerle "más barata" al solver una
+asignación, jamás prohibirla o forzarla.
 """
 
 from __future__ import annotations
 
+from collections import Counter
 from dataclasses import dataclass
 
 import pandas as pd
@@ -46,17 +60,25 @@ def ejecutar_optimizador(
     zona_unica_por_sku: dict[str, str] | None = None,
     zonas_excluidas_por_sku: dict[str, set[str]] | None = None,
     pares_familias_incompatibles: list[tuple[str, str]] | None = None,
+    comunidad_por_sku: dict[str, int] | None = None,
+    peso_afinidad: float = 0.0,
+    pesos: dict[str, float] | None = None,
 ) -> ResultadoOptimizador:
     zonas_no_destino = zonas_no_destino or []
     zona_unica_por_sku = zona_unica_por_sku or {}
     zonas_excluidas_por_sku = zonas_excluidas_por_sku or {}
     pares_familias_incompatibles = pares_familias_incompatibles or []
+    comunidad_por_sku = comunidad_por_sku or {}
 
     lista_skus = base_maestra["SKU"].tolist()
     lista_zonas = layout_cd["ZONA"].tolist()
 
     volumen_sku = base_maestra.set_index("SKU")["VOLUMEN_M3"].to_dict()
-    frecuencia_sku = base_maestra.set_index("SKU")["N_LINEAS"].to_dict()
+    # `pesos` = peso por SKU que multiplica TIEMPO_MINUTOS abajo -- Modelo
+    # 1 (velocidad) usa N_LINEAS por defecto (dominio/objetivo.py con
+    # modo="velocidad" hace exactamente esto); Modelo 2/3 pasan su propio
+    # peso ya reescalado a la misma masa total (ver 1.md §12).
+    pesos = pesos if pesos is not None else base_maestra.set_index("SKU")["N_LINEAS"].to_dict()
     zona_actual_sku = base_maestra.set_index("SKU")["ZONA_ACTUAL"].to_dict()
     tiempo_zona = layout_cd.set_index("ZONA")["TIEMPO_MINUTOS"].to_dict()
     capacidad_max = capacidad.set_index("ZONA")["CAPACIDAD_MAX_M3"].to_dict()
@@ -68,7 +90,7 @@ def ejecutar_optimizador(
     x = pulp.LpVariable.dicts("Asignacion", (lista_skus, lista_zonas), lowBound=0, upBound=1, cat="Binary")
 
     costo_picking = pulp.lpSum(
-        frecuencia_sku[sku] * tiempo_zona[zona] * x[sku][zona] for sku in lista_skus for zona in lista_zonas
+        pesos[sku] * tiempo_zona[zona] * x[sku][zona] for sku in lista_skus for zona in lista_zonas
     )
     costo_movimientos = pulp.lpSum(
         penalizacion_movimiento * x[sku][zona]
@@ -76,7 +98,36 @@ def ejecutar_optimizador(
         for zona in lista_zonas
         if zona != zona_actual_sku[sku]
     )
-    modelo += costo_picking + costo_movimientos
+
+    # Afinidad: premia concentrar en pocas zonas a los SKU que Louvain
+    # agrupó como "suelen pedirse juntos" (ver dominio/afinidad.py) --
+    # p[comunidad][zona] = 1 si algún SKU de esa comunidad cae en esa
+    # zona (mismo patrón que y[familia][zona] de incompatibilidad, pero
+    # el objetivo es minimizar EN CUÁNTAS zonas distintas queda repartida
+    # cada comunidad, no prohibir que compartan). Solo se arma si hay
+    # comunidades reales (2+ SKU) y un peso configurado -- si
+    # `peso_afinidad` es 0 (default, ver core/config.py::PESO_AFINIDAD)
+    # no se crean variables de más para un término que de todos modos
+    # contribuiría 0 al objetivo.
+    costo_afinidad = 0
+    if comunidad_por_sku and peso_afinidad:
+        conteo_comunidad = Counter(comunidad_por_sku[sku] for sku in lista_skus if sku in comunidad_por_sku)
+        comunidades_multi = {com for com, n in conteo_comunidad.items() if n > 1}
+        if comunidades_multi:
+            p = pulp.LpVariable.dicts(
+                "ComunidadEnZona", (list(comunidades_multi), lista_zonas), lowBound=0, upBound=1, cat="Binary"
+            )
+            for sku in lista_skus:
+                com = comunidad_por_sku.get(sku)
+                if com not in comunidades_multi:
+                    continue
+                for zona in lista_zonas:
+                    modelo += x[sku][zona] <= p[com][zona]
+            costo_afinidad = peso_afinidad * pulp.lpSum(
+                p[com][zona] for com in comunidades_multi for zona in lista_zonas
+            )
+
+    modelo += costo_picking + costo_movimientos + costo_afinidad
 
     # Una zona por SKU
     for sku in lista_skus:

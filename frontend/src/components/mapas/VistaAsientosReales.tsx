@@ -2,7 +2,14 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { RecomendacionSKU } from '../../api/pipeline';
 import { colorCalor } from '../../lib/colorCalor';
 import { LAYOUT_ESCANEADO, type ZonaReal } from './layoutEscaneado';
-import { asientosPorMovimiento, descripcionAsiento, ETIQUETA_ESTADO, type AsientoMovimiento, type EstadoMovimiento } from './movimientoReal';
+import {
+  asientosPorMovimiento,
+  colorComunidad,
+  descripcionAsiento,
+  ETIQUETA_ESTADO,
+  type AsientoMovimiento,
+  type EstadoMovimiento,
+} from './movimientoReal';
 import './VistaAsientosReales.css';
 
 type ModoColorAsientos = 'movimiento' | 'rotacion';
@@ -77,6 +84,17 @@ export function VistaAsientosReales({
       } else {
         el.setAttribute('class', `asientos-reales-punto estado-${asiento.estado}`);
         el.style.fill = '';
+      }
+
+      // Borde de color por comunidad de afinidad -- mismo mecanismo que
+      // PlanoEscaneado.tsx, ver MapasView "Forzar afinidad".
+      const comunidad = asiento.sku?.COMUNIDAD_AFINIDAD;
+      if (comunidad != null) {
+        el.style.stroke = colorComunidad(comunidad);
+        el.style.strokeWidth = '1.8';
+      } else {
+        el.style.stroke = '';
+        el.style.strokeWidth = '';
       }
 
       const onEnter = () => setHover({ id: asiento.id, texto: descripcionAsiento(asiento) });

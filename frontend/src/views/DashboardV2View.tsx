@@ -17,6 +17,7 @@ export function DashboardV2View() {
       capacidadZonas={resultado.capacidad_zonas}
       campo={campo}
       onCampoChange={setCampo}
+      modoObjetivo={resultado.modo_objetivo}
     />
   );
 }

@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import type { RecomendacionSKU } from '../../api/pipeline';
 import { colorCalor } from '../../lib/colorCalor';
 import { LAYOUT_ESCANEADO, ZONAS_ESCANEADAS } from './layoutEscaneado';
-import { asientosPorMovimiento, descripcionAsiento } from './movimientoReal';
+import { asientosPorMovimiento, colorComunidad, descripcionAsiento } from './movimientoReal';
 import './PlanoEscaneado.css';
 
 type ModoColorEscaneado = 'ocupacion' | 'rotacion';
@@ -22,7 +22,7 @@ export function PlanoEscaneado({
   recomendaciones,
   onClickZona,
 }: {
-  titulo: string;
+  titulo: React.ReactNode;
   campo: 'ZONA_ACTUAL' | 'ZONA_RECOMENDADA';
   recomendaciones: RecomendacionSKU[];
   onClickZona?: (zonaId: string) => void;
@@ -103,10 +103,17 @@ export function PlanoEscaneado({
                   <path d={zona.boundary_d ?? undefined} className="plano-esc-borde" />
                   {zona.espacios.map((e, i) => {
                     const asiento = asientos[i];
-                    const estilo =
-                      asiento.sku && modo === 'rotacion' && rangoRotacion.max > rangoRotacion.min
+                    const comunidad = asiento.sku?.COMUNIDAD_AFINIDAD;
+                    const estilo = {
+                      ...(asiento.sku && modo === 'rotacion' && rangoRotacion.max > rangoRotacion.min
                         ? { fill: colorCalor((asiento.sku.ROTACION_6M - rangoRotacion.min) / (rangoRotacion.max - rangoRotacion.min)) }
-                        : undefined;
+                        : undefined),
+                      // Borde de color por comunidad de afinidad (SKU que
+                      // suelen pedirse juntos, real o forzada) -- solo
+                      // presente cuando la corrida usó afinidad, ver
+                      // MapasView "Forzar afinidad".
+                      ...(comunidad != null ? { stroke: colorComunidad(comunidad), strokeWidth: 1.8 } : undefined),
+                    };
                     return (
                       <rect
                         key={e.id}

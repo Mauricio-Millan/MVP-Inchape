@@ -3,13 +3,16 @@ from fastapi.testclient import TestClient
 from app.main import app
 
 
-def test_get_zonas_devuelve_las_13_zonas_geometricas():
+def test_get_zonas_devuelve_las_14_zonas_geometricas():
     with TestClient(app) as client:
         respuesta = client.get("/zonas")
 
     assert respuesta.status_code == 200
     cuerpo = respuesta.json()
-    assert len(cuerpo["zonas"]) == 13
+    # 14, no 13 -- "recibo" se separó de "recepcion" en una sesión anterior
+    # (Ubicación Recibo y Recepción de aéreos son zonas reales distintas,
+    # antes conflacionadas por un clave_excel mal asignado en zonas.json).
+    assert len(cuerpo["zonas"]) == 14
     assert cuerpo["distancia_absoluta_confirmada"] is False
 
     ids = {z["id"] for z in cuerpo["zonas"]}
@@ -26,4 +29,4 @@ def test_get_zonas_es_idempotente_no_duplica_en_cada_arranque():
         client.get("/zonas")
         respuesta_2 = client.get("/zonas")
 
-    assert len(respuesta_2.json()["zonas"]) == 13
+    assert len(respuesta_2.json()["zonas"]) == 14
